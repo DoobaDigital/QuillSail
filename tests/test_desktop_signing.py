@@ -149,3 +149,69 @@ def test_a_missing_timestamp_is_retried_when_signing(tmp_path, monkeypatch):
     signing.sign_disk_image(image)
     assert len(calls) == 2
     assert calls[0] == calls[1] and "--force" in calls[0] and "--timestamp" in calls[0]
+
+
+def notary_service(monkeypatch, replies):
+    """Answer notarytool commands from scripted replies; None is a stalled connection."""
+    calls = []
+
+    def notarytool(command, **kwargs):
+        calls.append(command)
+        queue = replies[command[2]]
+        reply = queue.pop(0) if len(queue) > 1 else queue[0]
+        if reply is None:
+            raise signing.subprocess.TimeoutExpired(command, kwargs["timeout"])
+        return signing.subprocess.CompletedProcess(command, 0, signing.json.dumps(reply), "")
+
+    monkeypatch.setenv("QUILLSAIL_NOTARY_PROFILE", "notary")
+    monkeypatch.delenv("QUILLSAIL_MACOS_KEYCHAIN", raising=False)
+    monkeypatch.setattr(signing.subprocess, "run", notarytool)
+    monkeypatch.setattr(signing.time, "sleep", lambda _: None)
+    stapled = []
+    monkeypatch.setattr(signing, "stapler", lambda action, path: stapled.append((action, path)))
+    return calls, stapled
+
+
+def test_stalled_notary_connections_are_retried_on_the_same_submission(tmp_path, monkeypatch):
+    image = tmp_path / "QuillSail.dmg"
+    calls, stapled = notary_service(monkeypatch, {
+        "submit": [None, {"id": "submission-1"}],
+        "info": [None, {"status": "In Progress"}, {"status": "Accepted"}],
+    })
+
+    signing.notarize(image)
+
+    assert [call[2] for call in calls] == ["submit", "submit", "info", "info", "info"]
+    assert all(call[3] == "submission-1" for call in calls[2:])
+    assert all("--wait" not in call and "notary" in call for call in calls)
+    assert stapled == [("staple", image)]
+
+
+def test_an_upload_apple_never_receives_fails_after_three_attempts(tmp_path, monkeypatch):
+    calls, stapled = notary_service(monkeypatch, {"submit": [None]})
+    with pytest.raises(RuntimeError, match="did not receive QuillSail.dmg"):
+        signing.notarize(tmp_path / "QuillSail.dmg")
+    assert [call[2] for call in calls] == ["submit"] * 3
+    assert stapled == []
+
+
+def test_a_rejected_submission_prints_apples_log_and_is_not_stapled(tmp_path, monkeypatch):
+    calls, stapled = notary_service(monkeypatch, {
+        "submit": [{"id": "submission-1"}], "info": [{"status": "Invalid"}], "log": [{}],
+    })
+    with pytest.raises(RuntimeError, match="did not notarize QuillSail.dmg: Invalid"):
+        signing.notarize(tmp_path / "QuillSail.dmg")
+    assert calls[-1][2:4] == ["log", "submission-1"]
+    assert stapled == []
+
+
+def test_notarization_stops_waiting_at_the_deadline(tmp_path, monkeypatch):
+    calls, stapled = notary_service(monkeypatch, {
+        "submit": [{"id": "submission-1"}], "info": [{"status": "In Progress"}],
+    })
+    clock = iter(range(0, 10 * signing.NOTARY_DEADLINE, 10 * 60))
+    monkeypatch.setattr(signing.time, "monotonic", lambda: next(clock))
+    with pytest.raises(RuntimeError, match=r"has not finished notarizing QuillSail.dmg \(submission submission-1\)"):
+        signing.notarize(tmp_path / "QuillSail.dmg")
+    assert [call[2] for call in calls] == ["submit", "info", "info", "info", "info"]
+    assert stapled == []

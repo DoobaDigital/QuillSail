@@ -61,8 +61,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       OPENSSL_STATIC: '1'
-    # Manual runs wait for Apple to notarize each Mac app and disk image.
-    timeout-minutes: 50
+    # Manual runs wait up to 30 minutes for Apple to notarize each Mac app and disk image.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -139,12 +139,13 @@ jobs:
           # Signing, certificate verification, stapling and validation stay required.
           echo 'block return out quick proto udp from any to any port 443' | sudo pfctl -f -
           sudo pfctl -E
+      # Unbuffered output keeps the script's progress in order with the tools it runs.
       - name: Build and test native desktop
         if: runner.os != 'Linux'
-        run: python scripts/build_desktop.py --target ${{ matrix.target }}
+        run: python -u scripts/build_desktop.py --target ${{ matrix.target }}
       - name: Build and test Linux desktop with a virtual display
         if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum python scripts/build_desktop.py --target ${{ matrix.target }}
+        run: xvfb-run --auto-servernum python -u scripts/build_desktop.py --target ${{ matrix.target }}
       - name: Summarize native macOS crash diagnostics
         if: failure() && runner.os == 'macOS'
         run: python scripts/desktop_diagnostics.py

@@ -21,6 +21,9 @@ THIN = {b"\xfe\xed\xfa\xce": ">", b"\xce\xfa\xed\xfe": "<", b"\xfe\xed\xfa\xcf":
 FAT = {b"\xca\xfe\xba\xbe": 20, b"\xca\xfe\xba\xbf": 32}
 EXECUTABLE = 2  # MH_EXECUTE: these get the hardened-runtime entitlements.
 ENTITLEMENTS = Path(__file__).with_name("desktop_entitlements.plist")
+NOTARY_DEADLINE = 30 * 60  # Seconds Apple gets to receive and judge one upload.
+UPLOADS, UPLOAD_TIMEOUT, STATUS_TIMEOUT = 3, 10 * 60, 2 * 60
+FINISHED = {"Accepted", "Invalid", "Rejected"}
 
 
 def identity():
@@ -117,28 +120,54 @@ def sign_disk_image(image):
     _sign([image], runtime=False)
 
 
+def _profile():
+    return ["--keychain-profile", os.environ["QUILLSAIL_NOTARY_PROFILE"], *_keychain()]
+
+
+def notarytool(*args, timeout):
+    """Run a notarytool command and return its JSON reply, or {} when Apple didn't answer."""
+    command = ["xcrun", "notarytool", *[str(arg) for arg in args], *_profile(), "--output-format", "json"]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        print(f"notarytool {args[0]} got no answer from Apple within {timeout // 60} minutes.")
+        return {}
+    try:
+        return json.loads(result.stdout)
+    except ValueError:
+        print(f"notarytool {args[0]} failed: {result.stderr.strip() or 'no response'}")
+        return {}
+
+
 def notarize(path):
-    """Submit an app or disk image to Apple's notary service, wait, then staple the ticket."""
-    profile = ["--keychain-profile", os.environ["QUILLSAIL_NOTARY_PROFILE"], *_keychain()]
+    """Submit an app or disk image to Apple's notary service, wait, then staple the ticket.
+
+    Each upload and status check has its own time limit, so a stalled connection to Apple is
+    retried on the same submission instead of holding the build until the job times out.
+    """
+    deadline = time.monotonic() + NOTARY_DEADLINE
     with tempfile.TemporaryDirectory(prefix="quillsail-notarize-") as folder:
         upload = path
         if path.suffix == ".app":
             upload = Path(folder) / (path.stem + ".zip")
             run("ditto", "-c", "-k", "--keepParent", path, upload)
-        result = subprocess.run(["xcrun", "notarytool", "submit", str(upload), *profile, "--wait",
-                                 "--timeout", "40m", "--output-format", "json"],
-                                capture_output=True, text=True, timeout=45 * 60)
-    try:
-        submission = json.loads(result.stdout)
-    except ValueError:
-        submission = {}
-    if submission.get("status") != "Accepted":
-        if submission.get("id"):
-            # Apple's log names each rejected file and the reason.
-            subprocess.run(["xcrun", "notarytool", "log", submission["id"], *profile], timeout=300)
-        raise RuntimeError(f"Apple did not notarize {path.name}: "
-                           f"{submission.get('status') or result.stderr.strip() or 'no response'}.")
-    print(f"Notarized {path.name} (submission {submission['id']}).")
+        for attempt in range(1, UPLOADS + 1):
+            submission_id = notarytool("submit", upload, timeout=UPLOAD_TIMEOUT).get("id")
+            if submission_id:
+                break
+            if attempt == UPLOADS or time.monotonic() > deadline:
+                raise RuntimeError(f"Apple did not receive {path.name}.")
+            print(f"Uploading {path.name} failed; retrying ({attempt} of {UPLOADS - 1}).")
+            time.sleep(20 * attempt)
+    while (status := notarytool("info", submission_id, timeout=STATUS_TIMEOUT).get("status")) not in FINISHED:
+        if time.monotonic() > deadline:
+            raise RuntimeError(f"Apple has not finished notarizing {path.name} (submission {submission_id}).")
+        time.sleep(20)
+    if status != "Accepted":
+        # Apple's log names each rejected file and the reason.
+        subprocess.run(["xcrun", "notarytool", "log", submission_id, *_profile()], timeout=300)
+        raise RuntimeError(f"Apple did not notarize {path.name}: {status}.")
+    print(f"Notarized {path.name} (submission {submission_id}).")
     stapler("staple", path)
 
 
