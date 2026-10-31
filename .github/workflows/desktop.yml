@@ -129,6 +129,16 @@ jobs:
       - name: Install only the wheel and desktop build dependencies
         shell: bash
         run: python -m pip install "$(echo dist/*.whl)[desktop-build]"
+      - name: Use TCP for Apple notarization ticket downloads
+        if: matrix.target == 'macos-x86_64' && github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          # GitHub's Intel runner drops Apple's HTTP/3 ticket requests:
+          # https://github.com/actions/runner-images/issues/14924
+          # This disposable job blocks UDP 443 so stapler uses HTTPS over TCP.
+          # Signing, certificate verification, stapling and validation stay required.
+          echo 'block return out quick proto udp from any to any port 443' | sudo pfctl -f -
+          sudo pfctl -E
       - name: Build and test native desktop
         if: runner.os != 'Linux'
         run: python scripts/build_desktop.py --target ${{ matrix.target }}
