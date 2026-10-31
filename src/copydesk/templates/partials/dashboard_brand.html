@@ -1,5 +1,5 @@
-{% if not dashboard_default and appearance_image() and design.brand_display != 'name' %}
-  <img class="brand-logo{% if appearance_image('logo_dark') %} logo-light{% endif %}" src="{{ appearance_image() }}" alt="{{ site.name if design.brand_display != 'both' else '' }}">
-  {% if appearance_image('logo_dark') %}<img class="brand-logo logo-dark" src="{{ appearance_image('logo_dark') }}" alt="{{ site.name if design.brand_display != 'both' else '' }}">{% endif %}
-  {% if design.brand_display == 'both' %}<span class="dash-publication-name">{{ site.name }}</span>{% endif %}
+{% if not dashboard_default and appearance_image() and dash_design.brand_display != 'name' %}
+  <img class="brand-logo{% if appearance_image('logo_dark') %} logo-light{% endif %}" src="{{ appearance_image() }}" alt="{{ site.name if dash_design.brand_display != 'both' else '' }}">
+  {% if appearance_image('logo_dark') %}<img class="brand-logo logo-dark" src="{{ appearance_image('logo_dark') }}" alt="{{ site.name if dash_design.brand_display != 'both' else '' }}">{% endif %}
+  {% if dash_design.brand_display == 'both' %}<span class="dash-publication-name">{{ site.name }}</span>{% endif %}
 {% else %}<span class="dash-publication-name">{{ site.name }}</span>{% endif %}

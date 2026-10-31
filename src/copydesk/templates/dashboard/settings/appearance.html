@@ -1,35 +1,20 @@
 {% extends 'layout/dashboard.html' %}
-{% block page_title %}Publication design{% endblock %}
-{% block lead %}<p class="lead">Make it unmistakably yours. Choose a starting point, then shape every detail.</p>{% endblock %}
+{% block page_title %}Appearance{% endblock %}
+{% block lead %}<p class="lead">Design your publication and your dashboard. Changing one doesn't change the other.</p>{% endblock %}
 {% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/designer.css', v=version) }}">{% endblock %}
 
-{% macro field(key) %}
-{% set d = definitions['appearance.' ~ key] %}{% set value = values.get(d.key, d.default) %}
-{% if d.type == 'choice' %}
-{{ forms.select(d.key, d.label, d.get_choices(), value, errors=errors, help=d.help) }}
-{% elif d.type == 'bool' %}
-{{ forms.checkbox(d.key, d.label, value, help=d.help) }}
-{% elif d.type in ('code', 'markdown') %}
-{{ forms.textarea(d.key, d.label, value, errors=errors, help=d.help, rows=8 if d.type == 'code' else 3, cls='code-input' if d.type == 'code' else '') }}
-{% elif d.type == 'int' %}
-{{ forms.input(d.key, d.label, value, type='number', errors=errors, attrs='min="' ~ d.extra.min ~ '" max="' ~ d.extra.max ~ '"') }}
-{% elif d.type == 'color' %}
-<div class="field{% if errors.get(d.key) %} has-error{% endif %}">
-  <label for="f-{{ d.key }}">{{ d.label }}</label>
-  <div class="design-color">
-    <input type="color" value="{{ value or '#181b21' }}" aria-label="Choose {{ d.label|lower }}" data-color-for="{{ d.key }}">
-    <input type="text" id="f-{{ d.key }}" name="{{ d.key }}" value="{{ value }}" pattern="#[0-9a-fA-F]{6}" placeholder="{{ 'Automatic' if d.extra.get('allow_blank') else '#ffffff' }}" maxlength="7"{% if errors.get(d.key) %} aria-invalid="true" aria-describedby="f-{{ d.key }}-error"{% endif %}>
-  </div>
-  {% if errors.get(d.key) %}<p class="error-text" id="f-{{ d.key }}-error">{{ errors[d.key] }}</p>{% endif %}
-</div>
-{% else %}{{ forms.input(d.key, d.label, value, errors=errors, help=d.help) }}{% endif %}
-{% endmacro %}
+{% import "dashboard/settings/design_macros.html" as design with context %}
 
 {% block content %}
 <nav aria-label="Settings sections"><ul class="tabs">
 {% for key, label in tabs %}<li><a href="{{ url_for('dash.settings', tab=key) }}"{% if key == 'appearance' %} aria-current="page"{% endif %}>{{ label }}</a></li>{% endfor %}
 </ul></nav>
 {{ forms.error_summary(errors) }}
+{{ design.sections('publication') }}
+<div class="design-heading">
+  <h2>Publication design</h2>
+  <p class="help">Your website, homepage and newsletter emails{% if dashboard_matches %}, and the dashboard while it matches the publication{% else %}. The dashboard has <a href="{{ url_for('dash.dashboard_design') }}">its own design</a>{% endif %}.</p>
+</div>
 <form method="post" enctype="multipart/form-data" id="appearance-form" data-design-form>
   <button class="visually-hidden" tabindex="-1" aria-hidden="true" type="submit" formaction="{{ url_for('dash.appearance_preview') }}" formtarget="design-preview">Preview changes</button>
   {{ forms.csrf() }}<input type="hidden" name="full_design" value="1">
@@ -38,23 +23,7 @@
   <input type="hidden" name="preview_format" value="web" data-preview-format>
   <div class="design-workspace">
     <div class="design-controls">
-      <section class="panel">
-        <div class="panel-header"><h2>A starting point</h2><span class="badge">Your content stays yours</span></div>
-        <div class="panel-body stack">
-          <p class="help">Original styles for a daily paper, quick digest, knowledge journal, or something entirely your own. Loading a style resets visual controls; your logos, custom CSS and content stay in place.</p>
-          <div class="design-presets">
-          {% for key, preset in presets.items() %}
-          <label class="design-preset">
-            <input type="radio" name="preset" value="{{ key }}"{% if values['appearance.style'] == key %} checked{% endif %}>
-            <span class="preset-art preset-{{ key }}" aria-hidden="true"><span class="preset-masthead">Aa</span><span class="preset-rule"></span><span class="preset-lines"></span></span>
-            <strong>{{ preset.title }}</strong><span class="help">{{ preset.description }}</span>
-          </label>
-          {% endfor %}
-          </div>
-          <p><button class="button button-small" name="action" value="preset" type="submit" data-load-preset>Load starting style</button></p>
-          <p class="small muted" data-design-notice role="status">Changes stay private until you save.</p>
-        </div>
-      </section>
+      {{ design.starting_styles(values['appearance.style'], "QuillSail's own ink-on-paper style, or original styles for a daily paper, quick digest, knowledge journal, or something entirely your own. Loading a style resets visual controls; your logos, custom CSS and content stay in place.") }}
       {% for id, title, description, fields in groups %}
       <details class="panel design-section" id="design-{{ id }}"{% if id in ('identity',) %} open{% endif %}>
         <summary><strong>{{ title }}</strong></summary>
@@ -75,7 +44,7 @@
           {% if id == 'hero' %}<p class="help">PNG, JPEG, WebP or GIF. Upload a separate hero logo or leave it empty to reuse your publication logo. A transparent PNG works well. If no logo is available, the title remains visible.</p>
           {% else %}<p class="help">PNG, JPEG, WebP or GIF. Transparent PNG works well for logos. Dark and email logos fall back to your main logo. Use a square image for the browser icon.</p>{% endif %}
           {% endif %}
-          <div class="design-fields">{% for key in fields %}{{ field(key) }}{% endfor %}</div>
+          <div class="design-fields">{% for key in fields %}{{ design.field('appearance.' ~ key) }}{% endfor %}</div>
           {% if id == 'hero' %}<p><button class="button button-small" type="submit" formaction="{{ url_for('dash.appearance_preview', preview_format='home') }}" formtarget="design-preview" data-preview-home>Preview homepage</button></p>{% endif %}
           {% if id == 'advanced' %}
           <p class="help">Website hooks: <code>.publication</code>, <code>.site-header</code>, <code>.issue-header</code>, <code>.issue-story-list</code>, <code>.issue-block</code> and <code>.prose</code>. Email hooks: <code>.email-shell</code>, <code>.email-masthead</code>, <code>.email-content</code>, <code>.email-story</code> and <code>.email-footer</code>. Use <code>!important</code> to override an existing email inline declaration. External CSS imports are ignored for email.</p>
@@ -91,17 +60,16 @@
           <p><button class="button button-small" name="action" value="import" type="submit">Load design file</button></p>
         </div>
       </details>
-      <div class="design-save"><button class="button button-primary" name="action" value="save" type="submit">Save publication design</button><p class="help">Applies to the website, dashboard and future emails. Previously delivered emails keep their design.</p></div>
+      <div class="design-save"><button class="button button-primary" name="action" value="save" type="submit">Save publication design</button><p class="help">Applies to the website{% if dashboard_matches %}, dashboard{% endif %} and future emails. Previously delivered emails keep their design.</p></div>
     </div>
     <aside class="design-preview-panel" aria-label="Design preview">
       <div class="design-preview-tools">
         <label for="design-preview-kind" class="visually-hidden">Preview type</label>
         <select id="design-preview-kind" data-preview-kind><option value="web">Website — issue</option><option value="home">Website — homepage</option><option value="dashboard">Dashboard</option><option value="email">Newsletter email</option></select>
-        <button class="button button-small" type="button" data-preview-size="desktop" aria-pressed="true">Desktop</button>
-        <button class="button button-small" type="button" data-preview-size="mobile" aria-pressed="false">Mobile</button>
+        {{ design.preview_tools() }}
         <button class="button button-small" type="submit" formaction="{{ url_for('dash.appearance_preview') }}" formtarget="design-preview" data-update-preview>Preview changes</button>
       </div>
-      <p class="help">Private sample preview. No posts are published and no email is sent.</p>
+      <p class="help">Private sample preview. No posts are published and no email is sent.{% if not dashboard_matches %} The dashboard preview shows the dashboard's own design.{% endif %}</p>
       <div class="design-preview-stage"><iframe title="Publication design preview" name="design-preview" id="design-preview" src="{{ url_for('dash.appearance_preview') }}" sandbox="allow-same-origin allow-scripts" referrerpolicy="no-referrer"></iframe></div>
       <noscript><p class="help">Use Preview changes to update the website preview. <button type="submit" class="button button-small" formaction="{{ url_for('dash.appearance_preview', preview_format='dashboard') }}" formtarget="design-preview">Preview dashboard</button> <button type="submit" class="button button-small" formaction="{{ url_for('dash.appearance_preview', preview_format='email') }}" formtarget="design-preview">Preview newsletter email</button></p></noscript>
     </aside>

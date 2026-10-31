@@ -19,9 +19,9 @@ from copydesk.utils import utcnow
 from copydesk.views.dashboard import bp
 
 
-def _values():
+def _values(tab: str = "appearance"):
     values, errors = {}, {}
-    for d in settings.for_tab("appearance"):
+    for d in settings.for_tab(tab):
         checkbox_form = request.form.get("full_design") and (
             not d.key.startswith("appearance.hero_") or request.form.get("hero_controls"))
         raw = request.form.get(d.key, False if d.type == "bool" and checkbox_form else settings.get(d.key))
@@ -29,7 +29,7 @@ def _values():
         values[d.key] = value
         if error:
             errors[d.key] = error
-    errors.update(appearance.validate(values))
+    errors.update(appearance.validate(values, appearance.DESIGN_FILES[tab][1]))
     return values, errors
 
 
@@ -52,6 +52,7 @@ def _images():
 def appearance_page():
     values = {d.key: settings.get(d.key) for d in settings.for_tab("appearance")}
     errors = {}
+    dashboard_matches = settings.get("appearance.dashboard_theme") == "publication"
     if request.method == "POST":
         values, errors = _values()
         action = request.form.get("action", "save")
@@ -83,11 +84,17 @@ def appearance_page():
                     if not value:
                         values[f"appearance.{role}"] = ""
                 changed = [key for key, value in values.items() if settings.get(key, None) != value]
-                settings.set_values(values)
+                settings.set_values(values | {"onboarding.appearance": "done"})
+                if settings.get("appearance.core_styles"):
+                    settings.set_value("appearance.core_styles", False)
                 audit.record("settings.updated", None, actor=current_user, label="Publication appearance",
                              details={"tab": "appearance", "keys": changed})
                 db.session.commit()
-                flash("Publication design saved. The website, dashboard and future emails now use these settings.", "success")
+                if dashboard_matches:
+                    flash("Publication design saved. The website, dashboard and future emails now use these settings.", "success")
+                else:
+                    flash("Publication design saved. The website and future emails now use these settings. "
+                          "The dashboard keeps its own design.", "success")
                 return redirect(url_for("dash.settings", tab="appearance"))
     groups = [
         ("identity", "Your identity", "Upload your publication's own branding.", ["brand_display", "logo_height"]),
@@ -105,10 +112,65 @@ def appearance_page():
          ["theme", "custom_css", "email_css"]),
     ]
     response = make_response(render_template("dashboard/settings/appearance.html", values=values, errors=errors,
+        dashboard_matches=dashboard_matches,
         groups=groups, definitions=settings.REGISTRY, presets=appearance.PRESETS,
         preset_data={key: appearance.preset_values(key) for key in appearance.PRESETS},
         logo_roles=appearance.UPLOADS, appearance_image=appearance.image_url, tabs=settings.TABS,
         dash_active="settings"), 422 if errors else 200)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@bp.route("/settings/appearance/dashboard", methods=["GET", "POST"])
+@perms.require("manage_settings")
+def dashboard_design():
+    """The dashboard's own design. Saving it never changes the publication design."""
+    values = {d.key: settings.get(d.key) for d in settings.for_tab("dashboard_design")}
+    errors = {}
+    if request.method == "POST":
+        values, errors = _values("dashboard_design")
+        action = request.form.get("action", "save")
+        if action == "preset":
+            name = request.form.get("preset", "")
+            if name in appearance.PRESETS:
+                values.update(appearance.dashboard_preset_values(name))
+                errors = appearance.validate(values, "dashboard")
+                flash("Starting style loaded. Preview and save when you're ready.", "info")
+            else:
+                errors["preset"] = "Choose a starting style."
+        elif action == "import":
+            file = request.files.get("design_file")
+            try:
+                if not file or not file.filename:
+                    raise ValueError("Choose a design file to import.")
+                values.update(appearance.import_design(file.read(100_001), "dashboard_design"))
+                errors = appearance.validate(values, "dashboard")
+                flash("Dashboard design loaded. Preview and save to apply it.", "info")
+            except ValueError as exc:
+                errors["design_file"] = str(exc)
+        elif not errors:
+            changed = [key for key, value in values.items() if settings.get(key, None) != value]
+            settings.set_values(values | {"onboarding.appearance": "done"})
+            audit.record("settings.updated", None, actor=current_user, label="Dashboard design",
+                         details={"tab": "dashboard_design", "keys": changed})
+            db.session.commit()
+            flash("Dashboard design saved. Your website and emails haven't changed.", "success")
+            return redirect(url_for("dash.dashboard_design"))
+    groups = [
+        ("identity", "Sidebar identity", "Shows your publication's logos. Upload them under Publication.",
+         ["brand_display", "logo_height"]),
+        ("type", "Typography", "System font stacks work without external font services. Custom stacks use fonts installed on each device.",
+         ["article_font", "heading_font", "custom_body_font", "custom_heading_font", "body_size", "line_height"]),
+        ("palette", "Color palette", "Choose the paper, ink and accent. Links and buttons adjust for contrast.",
+         ["accent_color", "background", "surface", "text_color", "muted_color", "border_color", "color_mode", "dark_background", "dark_surface", "dark_text"]),
+        ("layout", "Layout", "Spacing between panels and the shape of corners.", ["density", "corner_radius"]),
+        ("advanced", "Advanced design", "Add CSS for dashboard pages only. Website CSS rules for .dashboard also still apply.",
+         ["custom_css"]),
+    ]
+    response = make_response(render_template("dashboard/settings/dashboard_design.html", values=values, errors=errors,
+        groups=groups, definitions=settings.REGISTRY, presets=appearance.PRESETS, sources=appearance.DASHBOARD_SOURCES,
+        preset_data={key: appearance.dashboard_preset_values(key) for key in appearance.PRESETS},
+        tabs=settings.TABS, dash_active="settings"), 422 if errors else 200)
     response.headers["Cache-Control"] = "private, no-store"
     return response
 
@@ -122,10 +184,24 @@ def appearance_export():
     return response
 
 
+@bp.get("/settings/appearance/dashboard/export")
+@perms.require("manage_settings")
+def dashboard_design_export():
+    response = make_response(appearance.export_design("dashboard_design"))
+    response.headers.update({"Content-Type": "application/json", "Content-Disposition": 'attachment; filename="quillsail-dashboard-design.json"',
+                             "Cache-Control": "private, no-store"})
+    return response
+
+
 @bp.route("/settings/appearance/preview", methods=["GET", "POST"])
 @perms.require("manage_settings")
 def appearance_preview():
     values, errors = _values() if request.method == "POST" else ({}, {})
+    if request.method == "POST":
+        # Either designer can preview; fields the form doesn't hold keep their saved values.
+        dashboard_values, dashboard_errors = _values("dashboard_design")
+        values.update(dashboard_values)
+        errors.update(dashboard_errors)
     prepared, image_errors, images = _images() if request.method == "POST" else ({}, {}, {})
     errors.update(image_errors)
     if errors:

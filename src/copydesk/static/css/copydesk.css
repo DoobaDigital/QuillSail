@@ -190,14 +190,15 @@ p {
   margin: 0 0 1em;
 }
 
+/* Styles may set --link to color links differently from buttons. */
 a {
-  color: var(--accent);
+  color: var(--link, var(--accent));
   text-underline-offset: 0.18em;
   text-decoration-thickness: 1px;
 }
 
 a:hover {
-  color: var(--accent-hover);
+  color: var(--link-hover, var(--accent-hover));
   text-decoration-thickness: 2px;
 }
 
@@ -2913,6 +2914,18 @@ body.dashboard {
   display: none;
 }
 
+/* The drawer covers the Menu button, so it has its own Close button in the same corner. */
+.dash-nav-close {
+  display: none;
+}
+
+@media (max-width: 59.99rem) {
+  .js .dash-nav-close {
+    display: inline-flex;
+    align-self: flex-start;
+  }
+}
+
 .dash-brand {
   display: grid;
   gap: 0.1rem;
@@ -3280,6 +3293,10 @@ a.stat:hover {
   margin-top: 0.15rem;
 }
 
+.checklist li > :is(.ok, .warn, .bad) {
+  flex: none;
+}
+
 .checklist .ok {
   color: var(--success);
 }
@@ -3290,6 +3307,14 @@ a.stat:hover {
 
 .checklist .warn {
   color: var(--warning);
+}
+
+.checklist-skip {
+  margin: -0.4rem 0 0 auto;
+}
+
+.checklist-skip .button {
+  white-space: nowrap;
 }
 
 /* issue composer */

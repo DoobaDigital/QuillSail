@@ -36,7 +36,7 @@ Choose **Create my account and finish**. You're signed in to the dashboard.
 From the dashboard, take a quick tour:
 
 - **Settings → General**: set the tagline, the organization that publishes it, a contact email and your time zone.
-- **Settings → Appearance**: pick one of five starting styles, upload a logo, and preview the website and email before saving.
+- **Settings → Appearance**: keep QuillSail's own style or pick another starting style, upload a logo, and preview the website and email before saving. Open **Dashboard** on the same page to design the dashboard separately.
 - **Pages**: edit the starter **About**, **Writing guidelines** and **Privacy** pages.
 - **Groups and permissions**: look at the starter reader groups (Students, Staff and Alumni). Rename them or make your own.
 

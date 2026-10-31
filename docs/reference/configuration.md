@@ -181,4 +181,4 @@ microsoft_tenant = "common"
 
 ---
 
-*Generated from the QuillSail 1.14.1 source code by `scripts/build_reference_docs.py`.*
+*Generated from the QuillSail 1.15.0 source code by `scripts/build_reference_docs.py`.*

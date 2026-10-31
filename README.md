@@ -23,7 +23,7 @@ The project originated in work for **The Tech Stack**, a publication operated by
 - Competitions with moderated text/project entries, appointed judges, reader voting, deadlines, and published results.
 - Business outreach with confirmed contact emails, a private dashboard inbox, follow-up notes, and opportunities that can become editorial drafts.
 - Private draft issue links for external feedback, with expiry, revocation, and no public listing.
-- A publication designer with logo variants, five original starting styles, typography, color and layout controls, private website/email previews, custom CSS, and portable design files.
+- A publication designer with logo variants, QuillSail's own ink-on-paper style and five original starting styles, typography, color and layout controls, private website/email previews, custom CSS, and portable design files. The dashboard has its own designer with the same controls, or can match the publication.
 - Public archives, search, Atom feeds, informational pages, and account data export/deletion.
 - Themes with template inheritance and Python extensions with events, filters, settings, commands, and background jobs.
 - SQLite by default; optional PostgreSQL and MySQL drivers. SMTP delivery with a persistent job queue.

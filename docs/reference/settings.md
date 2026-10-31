@@ -23,13 +23,13 @@ Administrators change these under **Dashboard → Settings**, and they're stored
 | Setting | Key | Default | Notes |
 | --- | --- | --- | --- |
 | Installed template theme | `appearance.theme` | `default` | Themes change the overall look. More can be installed in the themes folder. |
-| Accent color | `appearance.accent_color` | `#1F5BD8` | Used for links and buttons. If it's too light or too dark to read, QuillSail adjusts it automatically. |
-| Body typeface | `appearance.article_font` | Editorial serif (`serif`) | Options: Editorial serif, Modern sans serif, Humanist sans serif, Bookish slab serif, Monospace, Custom font stack. |
+| Accent color | `appearance.accent_color` | `#6E4CC2` | Used for links and buttons. If it's too light or too dark to read, QuillSail adjusts it automatically. |
+| Body typeface | `appearance.article_font` | Book serif (`book`) | Options: Editorial serif, Book serif, Modern sans serif, Humanist sans serif, Bookish slab serif, Monospace, Custom font stack. |
 | Logo | `appearance.logo` | Blank | Upload on the Appearance page. Shown instead of the publication name in the header. |
 | Show the number of subscribers | `appearance.show_subscriber_count` | Off | Adds “Join 1,234 readers” under the sign-up form once you have 25 or more. |
 | Home page introduction | `appearance.home_intro` | Blank | Optional. A short welcome shown on the home page under the sign-up form. |
 | Custom CSS | `appearance.custom_css` | Blank | Advanced. Added after the theme's styles on the website and dashboard. Use .dashboard for dashboard-specific rules. |
-| Starting style | `appearance.style` | Classic (`classic`) | Options: Classic, Broadsheet, Brief, Reference, Canvas. |
+| Starting style | `appearance.style` | QuillSail (`quillsail`) | Options: QuillSail, Classic, Broadsheet, Brief, Reference, Canvas. |
 | Logo for dark backgrounds | `appearance.logo_dark` | Blank |  |
 | Email logo | `appearance.email_logo` | Blank |  |
 | Publication icon | `appearance.favicon` | Blank |  |
@@ -44,22 +44,22 @@ Administrators change these under **Dashboard → Settings**, and they're stored
 | Show hero overline | `appearance.hero_show_overline` | On |  |
 | Hero logo width (pixels) | `appearance.hero_logo_width` | `480` | From 120 to 1000. |
 | Masthead shows | `appearance.brand_display` | Logo, or publication name if no logo is uploaded (`logo`) | Options: Logo, or publication name if no logo is uploaded, Logo and publication name, Publication name. |
-| Heading typeface | `appearance.heading_font` | Follow body type (`inherit`) | Options: Follow body type, Editorial serif, Modern sans serif, Humanist sans serif, Bookish slab serif, Monospace, Custom font stack. |
+| Heading typeface | `appearance.heading_font` | Amiri bold display (`amiri`) | Options: Follow body type, Amiri bold display, Editorial serif, Book serif, Modern sans serif, Humanist sans serif, Bookish slab serif, Monospace, Custom font stack. |
 | Custom body font stack | `appearance.custom_body_font` | Blank |  |
 | Custom heading font stack | `appearance.custom_heading_font` | Blank |  |
 | Page background | `appearance.background` | `#ffffff` |  |
 | Paper / card background | `appearance.surface` | `#ffffff` |  |
-| Body text | `appearance.text_color` | `#16181d` |  |
-| Secondary text | `appearance.muted_color` | `#525866` |  |
-| Rules and borders | `appearance.border_color` | `#e1e4e9` |  |
-| Dark page background | `appearance.dark_background` | Blank |  |
-| Dark paper / card background | `appearance.dark_surface` | Blank |  |
-| Dark body text | `appearance.dark_text` | Blank |  |
+| Body text | `appearance.text_color` | `#000000` |  |
+| Secondary text | `appearance.muted_color` | `#000000` |  |
+| Rules and borders | `appearance.border_color` | `#000000` |  |
+| Dark page background | `appearance.dark_background` | `#000000` |  |
+| Dark paper / card background | `appearance.dark_surface` | `#000000` |  |
+| Dark body text | `appearance.dark_text` | `#dbdbdb` |  |
 | Website width (pixels) | `appearance.content_width` | `1152` | From 720 to 1600. |
 | Reading width (pixels) | `appearance.reading_width` | `640` | From 420 to 1000. |
 | Article text size (pixels) | `appearance.body_size` | `18` | From 14 to 26. |
 | Line height (percent) | `appearance.line_height` | `170` | From 130 to 220. |
-| Corner radius (pixels) | `appearance.corner_radius` | `10` | From 0 to 32. |
+| Corner radius (pixels) | `appearance.corner_radius` | `0` | From 0 to 32. |
 | Website logo height (pixels) | `appearance.logo_height` | `40` | From 20 to 120. |
 | Email width (pixels) | `appearance.email_width` | `600` | From 480 to 800. |
 | Email text size (pixels) | `appearance.email_size` | `16` | From 14 to 24. |
@@ -67,7 +67,7 @@ Administrators change these under **Dashboard → Settings**, and they're stored
 | Masthead alignment | `appearance.masthead` | Left (`left`) | Options: Left, Centered. |
 | Spacing | `appearance.density` | Comfortable (`comfortable`) | Options: Compact, Comfortable, Spacious. |
 | Issue layout | `appearance.issue_layout` | Continuous reading (`stacked`) | Options: Continuous reading, Individual story cards, Two columns on wide screens. |
-| Default color mode | `appearance.color_mode` | Follow the reader's device (`auto`) | Options: Follow the reader's device, Light, Dark. |
+| Default color mode | `appearance.color_mode` | Light (`light`) | Options: Follow the reader's device, Light, Dark. |
 | Email presentation | `appearance.email_layout` | Classic (`classic`) | Options: Classic, Editorial, Compact digest, Reference, Story cards. |
 | Custom email CSS | `appearance.email_css` | Blank | Applied to newsletter emails and inlined where supported. Email clients support a smaller set of CSS than browsers. |
 
@@ -110,4 +110,4 @@ Administrators change these under **Dashboard → Settings**, and they're stored
 
 ---
 
-*Generated from the QuillSail 1.14.1 source code by `scripts/build_reference_docs.py`.*
+*Generated from the QuillSail 1.15.0 source code by `scripts/build_reference_docs.py`.*

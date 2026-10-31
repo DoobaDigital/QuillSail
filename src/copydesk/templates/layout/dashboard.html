@@ -4,7 +4,10 @@
 
 {% block title %}{% block page_title %}Dashboard{% endblock %} · {{ site.name }}{% endblock %}
 {% block meta %}<meta name="robots" content="noindex, nofollow">{% endblock %}
-{% block body_class %}dashboard{% if not dashboard_default %} publication{% if design.enabled %} designed design-{{ design.style }} density-{{ design.density }}{% endif %}{% endif %}{% endblock %}
+{# The dashboard has its own design, or shares the publication's design and installed theme. #}
+{% block body_class %}dashboard{% if not dashboard_default %}{% if dash_design.dashboard_theme == 'publication' %} publication{% endif %}{% if dash_design.enabled %} designed design-{{ dash_design.style }} density-{{ dash_design.density }}{% endif %}{% endif %}{% endblock %}
+{% block default_color_mode %}{{ dash_design.color_mode if dash_design.enabled and not dashboard_default else 'auto' }}{% endblock %}
+{% block theme_styles %}{% if dash_design.dashboard_theme == 'publication' %}{{ super() }}{% endif %}{% endblock %}
 {% block custom_css %}
 {% if not dashboard_default %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/publication.css', v=version) }}">
@@ -17,6 +20,9 @@
 {% elif setting('appearance.custom_css') %}
 <link rel="stylesheet" href="{{ url_for('public.custom_css', v=custom_css_version()) }}">
 {% endif %}
+{% if dash_design.dashboard_css %}
+<style nonce="{{ csp_nonce() }}">{{ dash_design.dashboard_css|replace('<', '\\3c ')|safe }}</style>
+{% endif %}
 {% endif %}
 {% endblock %}
 
@@ -26,6 +32,7 @@
 {% macro preview_link() %}{% if design_preview %} aria-disabled="true" tabindex="-1"{% endif %}{% endmacro %}
 <div class="dash">
   <aside class="dash-sidebar" id="cd-dash-nav" aria-label="Dashboard">
+    <button class="button button-small dash-nav-close" type="button" data-dash-nav-close>{{ icon("x") }} Close menu</button>
     <a class="dash-brand" href="{{ dashboard_link('dash.overview') }}" aria-label="{{ site.name }} dashboard"{{ preview_link() }}><span class="dash-brand-identity">{% include 'partials/dashboard_brand.html' %}</span><span class="dash-brand-caption">Dashboard</span></a>
     <nav>
       {% for heading, links in dash_nav %}

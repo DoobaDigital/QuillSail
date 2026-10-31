@@ -43,33 +43,64 @@
 
   // ---------------------------------------------------------------- navigation
 
+  // The publication's Menu button opens the .site-nav around the list it controls.
+  // The stylesheet (and custom CSS) shows the links for .site-nav.is-open.
+  var siteMenus = [];
   document.querySelectorAll("[data-nav-toggle]").forEach(function (button) {
     var target = document.getElementById(button.getAttribute("aria-controls"));
-    var container = button.closest("[data-nav]") || (target && target.parentElement);
+    var menu = target && (target.closest(".site-nav") || target.parentElement);
+    if (!menu) return;
+    siteMenus.push({ button: button, menu: menu });
     button.addEventListener("click", function () {
-      var open = button.getAttribute("aria-expanded") !== "true";
-      button.setAttribute("aria-expanded", String(open));
-      if (container) container.classList.toggle("is-open", open);
+      setSiteMenu(button, menu, button.getAttribute("aria-expanded") !== "true");
     });
   });
 
+  function setSiteMenu(button, menu, open) {
+    menu.classList.toggle("is-open", open);
+    button.setAttribute("aria-expanded", String(open));
+  }
+
+  // On narrow screens the dashboard sidebar is a drawer. The Menu button, the
+  // Close button, the dimmed area and Escape all go through setDashNav, so the
+  // drawer, aria-expanded and focus always agree.
   var dash = document.querySelector(".dash");
-  document.querySelectorAll("[data-dash-nav-toggle]").forEach(function (button) {
-    button.addEventListener("click", function () {
-      var open = !dash.classList.contains("nav-open");
-      dash.classList.toggle("nav-open", open);
-      button.setAttribute("aria-expanded", String(open));
-      if (open) {
-        var first = dash.querySelector(".dash-sidebar a");
-        if (first) first.focus();
-      }
+  var dashToggle = document.querySelector("[data-dash-nav-toggle]");
+  var dashSidebar = dash && dash.querySelector(".dash-sidebar");
+
+  function dashNavOpen() {
+    return !!dash && dash.classList.contains("nav-open");
+  }
+
+  function setDashNav(open, returnFocus) {
+    if (!dash) return;
+    dash.classList.toggle("nav-open", open);
+    if (dashToggle) dashToggle.setAttribute("aria-expanded", String(open));
+    if (open) {
+      var first = dash.querySelector("[data-dash-nav-close]") || dash.querySelector(".dash-sidebar a");
+      if (first) first.focus();
+    } else if (returnFocus && dashToggle) {
+      dashToggle.focus();
+    }
+  }
+
+  if (dashToggle) {
+    dashToggle.addEventListener("click", function () {
+      setDashNav(!dashNavOpen(), true);
+    });
+  }
+
+  document.querySelectorAll("[data-dash-nav-close], .dash-scrim").forEach(function (control) {
+    control.addEventListener("click", function () {
+      setDashNav(false, true);
     });
   });
 
-  document.querySelectorAll(".dash-scrim").forEach(function (scrim) {
-    scrim.addEventListener("click", function () {
-      dash.classList.remove("nav-open");
-    });
+  // Tabbing out of the open drawer closes it, so focus never sits behind the dimmed area.
+  document.addEventListener("focusin", function (event) {
+    if (dashNavOpen() && dashSidebar && !dashSidebar.contains(event.target) && event.target !== dashToggle) {
+      setDashNav(false, false);
+    }
   });
 
   // Close open <details> menus on outside click or Escape.
@@ -86,7 +117,12 @@
       var summary = menu.querySelector("summary");
       if (summary) summary.focus();
     });
-    if (dash && dash.classList.contains("nav-open")) dash.classList.remove("nav-open");
+    siteMenus.forEach(function (item) {
+      if (item.button.getAttribute("aria-expanded") !== "true") return;
+      setSiteMenu(item.button, item.menu, false);
+      if (item.menu.contains(document.activeElement)) item.button.focus();
+    });
+    if (dashNavOpen()) setDashNav(false, true);
   });
 
   // ---------------------------------------------------------------- light / dark

@@ -1,0 +1,56 @@
+{# Controls shared by the publication and dashboard designers. Import "with context". #}
+{% import "macros/forms.html" as forms with context %}
+
+{% macro sections(active) %}
+<nav aria-label="Appearance sections"><ul class="tabs design-sections">
+  <li><a href="{{ url_for('dash.settings', tab='appearance') }}"{% if active == 'publication' %} aria-current="page"{% endif %}>Publication</a></li>
+  <li><a href="{{ url_for('dash.dashboard_design') }}"{% if active == 'dashboard' %} aria-current="page"{% endif %}>Dashboard</a></li>
+</ul></nav>
+{% endmacro %}
+
+{% macro field(key) %}
+{% set d = definitions[key] %}{% set value = values.get(d.key, d.default) %}
+{% if d.type == 'choice' %}
+{{ forms.select(d.key, d.label, d.get_choices(), value, errors=errors, help=d.help) }}
+{% elif d.type == 'bool' %}
+{{ forms.checkbox(d.key, d.label, value, help=d.help) }}
+{% elif d.type in ('code', 'markdown') %}
+{{ forms.textarea(d.key, d.label, value, errors=errors, help=d.help, rows=8 if d.type == 'code' else 3, cls='code-input' if d.type == 'code' else '') }}
+{% elif d.type == 'int' %}
+{{ forms.input(d.key, d.label, value, type='number', errors=errors, attrs='min="' ~ d.extra.min ~ '" max="' ~ d.extra.max ~ '"') }}
+{% elif d.type == 'color' %}
+<div class="field{% if errors.get(d.key) %} has-error{% endif %}">
+  <label for="f-{{ d.key }}">{{ d.label }}</label>
+  <div class="design-color">
+    <input type="color" value="{{ value or '#181b21' }}" aria-label="Choose {{ d.label|lower }}" data-color-for="{{ d.key }}">
+    <input type="text" id="f-{{ d.key }}" name="{{ d.key }}" value="{{ value }}" pattern="#[0-9a-fA-F]{6}" placeholder="{{ 'Automatic' if d.extra.get('allow_blank') else '#ffffff' }}" maxlength="7"{% if errors.get(d.key) %} aria-invalid="true" aria-describedby="f-{{ d.key }}-error"{% endif %}>
+  </div>
+  {% if errors.get(d.key) %}<p class="error-text" id="f-{{ d.key }}-error">{{ errors[d.key] }}</p>{% endif %}
+</div>
+{% else %}{{ forms.input(d.key, d.label, value, errors=errors, help=d.help) }}{% endif %}
+{% endmacro %}
+
+{% macro starting_styles(selected, description) %}
+<section class="panel">
+  <div class="panel-header"><h2>A starting point</h2><span class="badge">Your content stays yours</span></div>
+  <div class="panel-body stack">
+    <p class="help">{{ description }}</p>
+    <div class="design-presets">
+    {% for key, preset in presets.items() %}
+    <label class="design-preset">
+      <input type="radio" name="preset" value="{{ key }}"{% if selected == key %} checked{% endif %}>
+      <span class="preset-art preset-{{ key }}" aria-hidden="true"><span class="preset-masthead">Aa</span><span class="preset-rule"></span><span class="preset-lines"></span></span>
+      <strong>{{ preset.title }}</strong><span class="help">{{ preset.description }}</span>
+    </label>
+    {% endfor %}
+    </div>
+    <p><button class="button button-small" name="action" value="preset" type="submit" data-load-preset>Load starting style</button></p>
+    <p class="small muted" data-design-notice role="status">Changes stay private until you save.</p>
+  </div>
+</section>
+{% endmacro %}
+
+{% macro preview_tools() %}
+<button class="button button-small" type="button" data-preview-size="desktop" aria-pressed="true">Desktop</button>
+<button class="button button-small" type="button" data-preview-size="mobile" aria-pressed="false">Mobile</button>
+{% endmacro %}

@@ -305,5 +305,45 @@
       "upstream_issue": "https://github.com/actions/runner-images/issues/14924",
       "tls_and_ticket_validation_required": true
     }
+  },
+  "quillsail_style_dashboard_design": {
+    "version": "1.15.0",
+    "date": "2026-10-31",
+    "application": {
+      "passed": 606,
+      "skipped": 3
+    },
+    "website": {
+      "passed": 183,
+      "skipped": 1
+    },
+    "migration": "0008",
+    "migration_cases": [
+      "untouched defaults",
+      "logo-only Classic save",
+      "saved Canvas design",
+      "accent, custom CSS, installed theme or typeface changed before the designer"
+    ],
+    "browser": [
+      "desktop Chrome at 390px, light and dark",
+      "publication Menu opens and closes",
+      "dashboard drawer closes with Close menu, dimmed area and Escape, resetting aria-expanded and focus",
+      "Broadsheet style and installed theme with a matching dashboard",
+      "QuillSail homepage, dashboard, appearance page and email preview",
+      "no horizontal overflow at 390px",
+      "dashboard designer: starting style, live preview, Match the publication, save"
+    ],
+    "menu_script_cases": {
+      "passed": 9,
+      "failing_on_1_14_1": 8
+    },
+    "ios_safari_checked": false,
+    "android_chrome_checked": false,
+    "real_email_sent": false,
+    "not_run_locally": [
+      "server databases",
+      "Docker",
+      "native desktop builds"
+    ]
   }
 }
