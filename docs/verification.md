@@ -8,6 +8,8 @@ Locally bundled official Gmail, Outlook and Cloudflare product assets replace em
 
 Application tests: 569 passed, 3 skipped (11 external premailer warnings). Website tests: 183 passed, 1 skipped. Ruff and generated references passed. Wheel/sdist metadata and public boundaries passed; a clean wheel installation exercised migrations, setup, subpath routing and assets. Database, Docker and native desktop checks run in CI; server databases, Docker and cross-platform builds are unavailable locally.
 
+Two Intel Mac release attempts passed signing, application checks and notarization acceptance but failed while fetching Apple's ticket with Error 68 / network error -1005. GitHub's runner maintainers identified an HTTP/3 transport regression. Manual Intel jobs now use their documented UDP-443 block to obtain the ticket over HTTPS/TCP. The workaround is limited to the disposable CI runner; all signing, notarization, staple, validation and publisher requirements remain in place. The complete native release is rebuilt from the merged workflow change before publication.
+
 Separately, the maintained Gmail service was activated after operator-approved Google configuration and privacy publication. Live discovery and fresh domainless HTTP server/desktop PKCE preparation were checked using disposable local publications. Google's callback remained HTTPS and local return addresses used HTTP loopback, with independent verifiers and no per-publication client secret. Google production publishing does not establish sensitive-scope verification; unverified warnings, user caps and organization policies remain provider-controlled. No user consent, real mailbox token or live email was used in these checks.
 
 ## 1.14.0 Beta — shared Outlook sign-in

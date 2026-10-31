@@ -298,6 +298,12 @@
       "server databases",
       "Docker",
       "native desktop builds"
-    ]
+    ],
+    "intel_notarization_transport": {
+      "scope": "manual macos-x86_64 GitHub-hosted job",
+      "workaround": "block UDP 443 so Apple ticket downloads use HTTPS over TCP",
+      "upstream_issue": "https://github.com/actions/runner-images/issues/14924",
+      "tls_and_ticket_validation_required": true
+    }
   }
 }

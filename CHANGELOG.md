@@ -5,6 +5,7 @@
 - Add locally bundled Gmail, Outlook and Cloudflare logos to connector buttons, including Cloudflare reconnect and API-token backup. Replace email-card initials with provider marks and retain visible accessible labels.
 - Preserve each provider's colors on a white backing in light and dark themes. Logo display makes no third-party image requests.
 - Clarify that desktop Gmail connects through the hosted HTTPS callback and local HTTP loopback, with no public-domain prerequisite; shared-service availability is a separate maintainer setting.
+- Route Intel Mac release ticket downloads over HTTPS/TCP to work around GitHub's HTTP/3 runner failure. Mac releases still require signing, notarization, stapling and validation.
 
 ## 1.14.0 — Beta
 

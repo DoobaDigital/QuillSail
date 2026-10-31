@@ -47,6 +47,8 @@ Run **Desktop bundles** on `main` and enable its **publish** checkbox to publish
 
 The publisher creates a draft first and publishes it only after every upload is verified. It can resume the same draft after an upload failure and refuses to replace an already published version. Bump `copydesk.__version__` before changing published downloads. The built-in workflow token does not trigger the separate Release workflow, so publishing desktop downloads this way does not publish a container. See GitHub's [workflow trigger behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
 
+Manual Intel Mac release jobs apply [GitHub's documented workaround for ticket-download failures](https://github.com/actions/runner-images/issues/14924): block UDP port 443 in the disposable runner so Apple's stapler uses HTTPS over TCP. This avoids the runner's broken HTTP/3 path. Other platforms and pull-request jobs keep their existing network configuration. Developer ID signing, certificate verification, accepted notarization, ticket stapling and validation remain required; a failed check blocks publication.
+
 ## Local release checks
 
 ```sh
