@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.14.1 — Beta
+
+- Add locally bundled Gmail, Outlook and Cloudflare logos to connector buttons, including Cloudflare reconnect and API-token backup. Replace email-card initials with provider marks and retain visible accessible labels.
+- Preserve each provider's colors on a white backing in light and dark themes. Logo display makes no third-party image requests.
+- Clarify that desktop Gmail connects through the hosted HTTPS callback and local HTTP loopback, with no public-domain prerequisite; shared-service availability is a separate maintainer setting.
+
 ## 1.14.0 — Beta
 
 - Add shared Outlook/Microsoft 365 sign-in for desktop and server publications. Keep the confidential Microsoft Web client secret on the website backend and discover only public app metadata, so users connect by signing in without registering an app.

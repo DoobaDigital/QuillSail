@@ -18,7 +18,7 @@
 {% else %}<p>Set <code>site.base_url</code> in copydesk.toml or <code>COPYDESK_BASE_URL</code>, then restart QuillSail.</p>{% endif %}
 <h2>Connect Cloudflare</h2>
 <p>Sign in to Cloudflare to connect your domain. No API token is needed.</p>
-{% if oauth_available and not hosting %}<form method="post">{{ forms.csrf() }}<button class="button button-primary" name="action" value="oauth">Sign in with Cloudflare</button></form>{% endif %}
+{% if oauth_available and not hosting %}<form method="post">{{ forms.csrf() }}<button class="button button-primary" name="action" value="oauth">{{ ui.provider_logo('cloudflare') }} Sign in with Cloudflare</button></form>{% endif %}
 {% if not hosting %}<details><summary>Advanced: use your own Cloudflare OAuth app</summary>
 <p>QuillSail sign-in works without these settings. Forks and operators with a separate registered app can override the public client ID and relay.</p>
 <form method="post" class="form">{{ forms.csrf() }}<input type="hidden" name="action" value="oauth.setup">
@@ -26,7 +26,7 @@
 {{ forms.input('relay_url', 'Registered HTTPS relay callback', oauth_client.get('relay_url', '')) }}
 <button class="button">Save sign-in setup</button></form></details>{% endif %}
 {% if hosting %}
-{% if oauth_available %}<form method="post">{{ forms.csrf() }}<button class="button" name="action" value="oauth.reconnect">Reconnect with Cloudflare</button></form>{% endif %}
+{% if oauth_available %}<form method="post">{{ forms.csrf() }}<button class="button" name="action" value="oauth.reconnect">{{ ui.provider_logo('cloudflare') }} Reconnect with Cloudflare</button></form>{% endif %}
 <p>Connection: {{ hosting.status|replace('_', ' ') }}</p>
 <details><summary>Renew Cloudflare API access</summary><form method="post" class="form">{{ forms.csrf() }}<input type="hidden" name="action" value="reauthorize">
 {{ forms.input('token', 'Replacement Cloudflare API token', '', type='password', autocomplete='off') }}
@@ -45,7 +45,7 @@
 <p><a href="https://dash.cloudflare.com/profile/api-tokens">Create a Cloudflare API token</a></p>
 <form method="post" class="form">{{ forms.csrf() }}<input type="hidden" name="action" value="connect">
 {{ forms.input('token', 'Cloudflare API token', '', type='password', autocomplete='off') }}
-<button class="button">Connect using API token</button></form></details>
+<button class="button">{{ ui.provider_logo('cloudflare') }} Connect using API token</button></form></details>
 {% endif %}
 {% if desktop and hosting %}
 <h2>While this computer sleeps</h2>

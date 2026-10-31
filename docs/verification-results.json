@@ -265,5 +265,39 @@
       "Docker",
       "native desktop builds"
     ]
+  },
+  "connector_logos": {
+    "version": "1.14.1",
+    "date": "2026-10-31",
+    "application": {
+      "passed": 569,
+      "skipped": 3
+    },
+    "website": {
+      "passed": 183,
+      "skipped": 1
+    },
+    "browser": [
+      "official local assets loaded",
+      "accessible text labels preserved",
+      "light and dark themes",
+      "390px no horizontal overflow",
+      "Cloudflare sign-in and API-token backup"
+    ],
+    "gmail_domainless_validation": {
+      "live_discovery": true,
+      "http_loopback_server": true,
+      "http_loopback_desktop": true,
+      "https_provider_callback": true,
+      "google_production_configured": true,
+      "google_scope_verification_complete": false,
+      "user_consent": false,
+      "real_email_sent": false
+    },
+    "not_run_locally": [
+      "server databases",
+      "Docker",
+      "native desktop builds"
+    ]
   }
 }

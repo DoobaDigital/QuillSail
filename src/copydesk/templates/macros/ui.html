@@ -1,5 +1,12 @@
 {# Reusable pieces of interface. Import with: {% import "macros/ui.html" as ui with context %} #}
 
+{% macro provider_logo(provider, large=false) -%}
+{%- set files = {'gmail': 'gmail.svg', 'outlook': 'outlook.svg', 'cloudflare': 'cloudflare.png'} -%}
+{%- if provider in files -%}
+<span class="provider-logo{% if large %} provider-logo-large{% endif %}" aria-hidden="true"><img src="{{ url_for('static', filename='providers/' ~ files[provider], v=version) }}" width="20" height="20" alt="" draggable="false"></span>
+{%- endif -%}
+{%- endmacro %}
+
 {% macro avatar(user, size="md") -%}
 {%- if user.avatar -%}
 <img class="avatar avatar-{{ size }}" src="{{ upload_url(user.avatar) }}" alt="" loading="lazy">
