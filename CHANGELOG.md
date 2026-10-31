@@ -6,6 +6,7 @@
 - Preserve each provider's colors on a white backing in light and dark themes. Logo display makes no third-party image requests.
 - Clarify that desktop Gmail connects through the hosted HTTPS callback and local HTTP loopback, with no public-domain prerequisite; shared-service availability is a separate maintainer setting.
 - Route Intel Mac release ticket downloads over HTTPS/TCP to work around GitHub's HTTP/3 runner failure. Mac releases still require signing, notarization, stapling and validation.
+- Retry stalled Apple notarization uploads and status checks on the same submission, with a 30-minute limit for each file, so one unanswered connection no longer uses up the whole Mac release job.
 
 ## 1.14.0 — Beta
 
