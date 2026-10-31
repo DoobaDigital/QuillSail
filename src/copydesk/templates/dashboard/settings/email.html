@@ -36,17 +36,17 @@
 {% for key, provider in clients.items() %}
 <section class="panel email-provider" aria-labelledby="{{ key }}-heading">
   <div class="panel-body stack">
-    <span class="email-provider-mark {{ key }}" aria-hidden="true">{{ 'G' if key == 'gmail' else 'O' }}</span>
+    {{ ui.provider_logo(key, large=true) }}
     <div><h2 id="{{ key }}-heading">{{ provider.name }}</h2>
       <p class="muted">{{ 'Use a Gmail or Google Workspace account.' if key == 'gmail' else 'Use Outlook.com or a Microsoft 365 work or school account.' }}</p>
     </div>
     <p>Sign in, choose your account, and allow QuillSail to send your publication’s emails.</p>
     {% if provider.ready %}
     <form method="post" action="{{ url_for('dash.email_connect', provider=key) }}">{{ forms.csrf() }}
-      <button class="button button-primary" type="submit">Connect {{ provider.name }} {{ icon("arrow-right") }}</button>
+      <button class="button button-primary" type="submit">{{ ui.provider_logo(key) }} Connect {{ provider.name }} {{ icon("arrow-right") }}</button>
     </form>
     {% else %}
-    <a class="button button-primary" href="#{{ key }}-setup">Set up {{ provider.name }} {{ icon("arrow-right") }}</a>
+    <a class="button button-primary" href="#{{ key }}-setup">{{ ui.provider_logo(key) }} Set up {{ provider.name }} {{ icon("arrow-right") }}</a>
     <p class="small muted">One-time app setup is needed before the first account can connect.</p>
     {% endif %}
     <p class="small muted">Email stays with your provider. QuillSail can send messages; it does not request access to read your inbox.</p>

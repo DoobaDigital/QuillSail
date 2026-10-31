@@ -2,6 +2,14 @@
 
 QuillSail is beta software. These are development checks, not an independent security audit. Private deployment addresses, access details and operations records are excluded from the public repository.
 
+## 1.14.1 Beta — connector logos and local Gmail guidance
+
+Locally bundled official Gmail, Outlook and Cloudflare product assets replace email-card initials and appear alongside existing connector labels. A shared Jinja macro marks the images decorative and preserves the buttons' accessible names. A white backing preserves provider colors in both themes. Browser checks confirmed all assets loaded locally, light/dark appearance, Cloudflare sign-in/API-token backup and no horizontal overflow at 390px. No permissions, OAuth scopes or schema changed in this UI patch.
+
+Application tests: 569 passed, 3 skipped (11 external premailer warnings). Website tests: 183 passed, 1 skipped. Ruff and generated references passed. Wheel/sdist metadata and public boundaries passed; a clean wheel installation exercised migrations, setup, subpath routing and assets. Database, Docker and native desktop checks run in CI; server databases, Docker and cross-platform builds are unavailable locally.
+
+Separately, the maintained Gmail service was activated after operator-approved Google configuration and privacy publication. Live discovery and fresh domainless HTTP server/desktop PKCE preparation were checked using disposable local publications. Google's callback remained HTTPS and local return addresses used HTTP loopback, with independent verifiers and no per-publication client secret. Google production publishing does not establish sensitive-scope verification; unverified warnings, user caps and organization policies remain provider-controlled. No user consent, real mailbox token or live email was used in these checks.
+
 ## 1.14.0 Beta — shared Outlook sign-in
 
 Shared Outlook discovery and the confidential website broker use synthetic Microsoft registrations and mocked grants. Regression coverage exercises fresh server/desktop PKCE, fixed HTTPS callbacks, browser binding, encrypted client snapshots and tokens, proof-bound refresh/rotation, sender replacement races, malformed metadata, authority injection, cross-provider/tenant proof rejection, minimal scope aliases and rejected inbox permissions. Custom registrations and SMTP remain supported. Gmail and Cloudflare confirmation salts and browser state remain compatible; Outlook uses independent state and proof keys. No schema change is needed.
