@@ -22,10 +22,14 @@
   <div class="panel-header"><h2>Getting started</h2><span class="small muted">This list disappears once everything is done.</span></div>
   <div class="panel-body">
     <ul class="checklist">
-      {% for done, label, endpoint in checklist %}
+      {% for done, label, url, skip_url in checklist %}
       <li>
         {% if done %}<span class="ok">{{ icon("check-circle", "Done") }}</span> <s class="muted">{{ label }}</s>
-        {% else %}<span class="warn">{{ icon("alert", "To do") }}</span> <a href="{{ url_for(endpoint) }}">{{ label }}</a>{% endif %}
+        {% else %}<span class="warn">{{ icon("alert", "To do") }}</span> <a href="{{ url }}">{{ label }}</a>
+          {% if skip_url %}
+          <form class="checklist-skip" method="post" action="{{ skip_url }}">{{ forms.csrf() }}<button class="button button-small button-ghost" type="submit">Don't want to<span class="visually-hidden">: keep the current appearance</span></button></form>
+          {% endif %}
+        {% endif %}
       </li>
       {% endfor %}
     </ul>

@@ -1,0 +1,82 @@
+{% extends 'layout/dashboard.html' %}
+{% import "dashboard/settings/design_macros.html" as design with context %}
+{% block page_title %}Dashboard design{% endblock %}
+{% block heading %}Appearance{% endblock %}
+{% block lead %}<p class="lead">Design your publication and your dashboard. Changing one doesn't change the other.</p>{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/designer.css', v=version) }}">{% endblock %}
+
+{% block content %}
+<nav aria-label="Settings sections"><ul class="tabs">
+{% for key, label in tabs %}<li><a href="{{ url_for('dash.settings', tab=key) }}"{% if key == 'appearance' %} aria-current="page"{% endif %}>{{ label }}</a></li>{% endfor %}
+</ul></nav>
+{{ forms.error_summary(errors) }}
+{{ design.sections('dashboard') }}
+<div class="design-heading">
+  <h2>Dashboard design</h2>
+  <p class="help">How these administration pages look for everyone who manages the publication. Your website and emails keep the publication design.</p>
+</div>
+{% set source = values['appearance.dashboard_theme'] %}
+{% set source_error = errors.get('appearance.dashboard_theme') %}
+<form method="post" enctype="multipart/form-data" id="dashboard-design-form" data-design-form>
+  <button class="visually-hidden" tabindex="-1" aria-hidden="true" type="submit" formaction="{{ url_for('dash.appearance_preview', preview_format='dashboard') }}" formtarget="design-preview">Preview changes</button>
+  {{ forms.csrf() }}
+  <input type="hidden" name="dashboard.style" value="{{ values['dashboard.style'] }}">
+  <input type="hidden" name="preview_format" value="dashboard" data-preview-format>
+  <div class="design-workspace">
+    <div class="design-controls">
+      <section class="panel">
+        <div class="panel-body stack">
+          <fieldset class="fieldset{% if source_error %} has-error{% endif %}" id="f-appearance.dashboard_theme" aria-describedby="f-appearance.dashboard_theme-help{% if source_error %} f-appearance.dashboard_theme-error{% endif %}">
+            <legend>Dashboard design</legend>
+            <p class="help" id="f-appearance.dashboard_theme-help">Give the dashboard its own design, or have it follow the publication.</p>
+            {% if source_error %}<p class="error-text" id="f-appearance.dashboard_theme-error">{{ source_error }}</p>{% endif %}
+            <div class="design-presets dashboard-themes">
+              {% for key, (title, description) in sources.items() %}
+              <label class="design-preset">
+                <input type="radio" name="appearance.dashboard_theme" value="{{ key }}"{% if source == key %} checked{% endif %}>
+                <span class="preset-art preset-{{ values['dashboard.style'] if key == 'own' else setting('appearance.style') }}" aria-hidden="true"><span class="preset-masthead">Aa</span><span class="preset-rule"></span><span class="preset-lines"></span></span>
+                <strong>{{ title }}</strong><span class="help">{{ description }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+        </div>
+      </section>
+      <div class="design-controls" data-show-if="appearance.dashboard_theme:own">
+        {{ design.starting_styles(values['dashboard.style'], "QuillSail's own ink-on-paper style, or the same original styles your publication can use. Loading a style resets visual controls; your sidebar logo choices and dashboard CSS stay in place.") }}
+        {% for id, title, description, fields in groups %}
+        <details class="panel design-section" id="design-{{ id }}"{% if id == 'palette' %} open{% endif %}>
+          <summary><strong>{{ title }}</strong></summary>
+          <div class="panel-body stack">
+            <p class="help">{{ description }}</p>
+            {% if id == 'advanced' %}<p class="help">If custom styles hide the controls, open the <a href="{{ url_for('dash.dashboard_design', dashboard_style='default') }}">default dashboard view</a> to edit them. Your saved design stays in place.</p>{% endif %}
+            <div class="design-fields">{% for key in fields %}{{ design.field('dashboard.' ~ key) }}{% endfor %}</div>
+            {% if id == 'advanced' %}<p class="help">Dashboard hooks: <code>.dashboard</code>, <code>.dash-sidebar</code>, <code>.dash-content</code>, <code>.panel</code> and <code>.dash-nav</code>.</p>{% endif %}
+          </div>
+        </details>
+        {% endfor %}
+        <details class="panel design-section"><summary><strong>Reuse a design</strong></summary>
+          <div class="panel-body stack">
+            <p class="help">Export the saved dashboard design or import one from another QuillSail installation. Importing loads the controls for review.</p>
+            <p><a class="button button-small" href="{{ url_for('dash.dashboard_design_export') }}">Export saved dashboard design</a></p>
+            <div class="field{% if errors.get('design_file') %} has-error{% endif %}"><label for="f-design_file">Dashboard design JSON file</label><input id="f-design_file" type="file" name="design_file" accept="application/json,.json"{% if errors.get('design_file') %} aria-describedby="f-design_file-error" aria-invalid="true"{% endif %}>
+              {% if errors.get('design_file') %}<p class="error-text" id="f-design_file-error">{{ errors['design_file'] }}</p>{% endif %}</div>
+            <p><button class="button button-small" name="action" value="import" type="submit">Load design file</button></p>
+          </div>
+        </details>
+      </div>
+      <div class="design-save"><button class="button button-primary" name="action" value="save" type="submit">Save dashboard design</button><p class="help">Applies to the dashboard for everyone who manages the publication. Your website and emails don't change.</p></div>
+    </div>
+    <aside class="design-preview-panel" aria-label="Design preview">
+      <div class="design-preview-tools">
+        {{ design.preview_tools() }}
+        <button class="button button-small" type="submit" formaction="{{ url_for('dash.appearance_preview', preview_format='dashboard') }}" formtarget="design-preview" data-update-preview>Preview changes</button>
+      </div>
+      <p class="help">Private sample preview with sample counts and disabled controls.</p>
+      <div class="design-preview-stage"><iframe title="Dashboard design preview" name="design-preview" id="design-preview" src="{{ url_for('dash.appearance_preview', preview_format='dashboard') }}" sandbox="allow-same-origin allow-scripts" referrerpolicy="no-referrer"></iframe></div>
+    </aside>
+  </div>
+</form>
+<script type="application/json" id="design-presets">{{ preset_data|tojson }}</script>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/designer.js', v=version) }}" defer></script>{% endblock %}

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from flask import render_template
+from flask import flash, redirect, render_template, url_for
 from sqlalchemy import func, select
 
-from copydesk import jobs, newsletter, publication, settings
+from copydesk import audit, jobs, newsletter, publication, settings
 from copydesk import permissions as perms
 from copydesk.auth import current_user
 from copydesk.db import db
@@ -39,25 +39,45 @@ def system_warnings() -> list[tuple[str, str]]:
     return warnings
 
 
-def setup_checklist() -> list[tuple[bool, str, str]]:
-    """First-run tasks for a new site: (done, label, link endpoint)."""
+def setup_checklist() -> list[tuple[bool, str, str, str]]:
+    """First-run tasks for a new site: (done, label, link, skip link or "")."""
     has_tagline = bool(settings.get("site.tagline"))
     audience_domains = db.session.scalars(select(Group).where(Group.is_audience.is_(True))).all()
     has_domains = any(g.auto_join_domains for g in audience_domains)
     issue_count = db.session.scalar(select(func.count()).select_from(Issue)) or 0
     smtp = public_status()["connected"]
     if publication.is_blog():
+        reader_site = "blog and newsletter" if publication.has_newsletter() else "blog"
+    else:
+        reader_site = "newsletter"
+    items = [(settings.get("onboarding.appearance") in ("done", "skipped"),
+              f"Change the appearance of your dashboard and {reader_site}",
+              url_for("dash.settings", tab="appearance"), url_for("dash.skip_appearance"))]
+    if publication.is_blog():
         post_count = db.session.scalar(select(func.count()).select_from(Article).where(Article.status == "published")) or 0
-        items = [(has_tagline, "Add a tagline and description", "dash.settings"), (post_count > 0, "Write and publish your first blog post", "write.index")]
+        items += [(has_tagline, "Add a tagline and description", url_for("dash.settings"), ""),
+                  (post_count > 0, "Write and publish your first blog post", url_for("write.index"), "")]
         if publication.has_newsletter():
-            items.extend([(smtp, "Connect an email account", "dash.email_settings"), (issue_count > 0, "Create an optional newsletter issue", "dash.issues")])
+            items += [(smtp, "Connect an email account", url_for("dash.email_settings"), ""),
+                      (issue_count > 0, "Create an optional newsletter issue", url_for("dash.issues"), "")]
         return items
-    return [
-        (has_tagline, "Add a tagline and description", "dash.settings"),
-        (smtp, "Connect Gmail, Outlook, or an email server", "dash.email_settings"),
-        (has_domains, "Tell QuillSail which email domains identify students or staff", "dash.groups"),
-        (issue_count > 0, "Put together your first issue", "dash.issues"),
+    return items + [
+        (has_tagline, "Add a tagline and description", url_for("dash.settings"), ""),
+        (smtp, "Connect Gmail, Outlook, or an email server", url_for("dash.email_settings"), ""),
+        (has_domains, "Tell QuillSail which email domains identify students or staff", url_for("dash.groups"), ""),
+        (issue_count > 0, "Put together your first issue", url_for("dash.issues"), ""),
     ]
+
+
+@bp.post("/getting-started/appearance/skip")
+@perms.require("manage_settings")
+def skip_appearance():
+    settings.set_value("onboarding.appearance", "skipped")
+    audit.record("settings.updated", None, actor=current_user, label="Getting started",
+                 details={"keys": ["onboarding.appearance"]})
+    db.session.commit()
+    flash("Skipped. You can change the appearance anytime in Settings → Appearance.", "info")
+    return redirect(url_for("dash.overview"))
 
 
 @bp.get("/")

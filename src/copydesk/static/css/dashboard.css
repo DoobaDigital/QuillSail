@@ -15,7 +15,7 @@
 .dashboard.designed :is(.panel-body,.stat){padding:clamp(16px,calc(var(--design-space)*.65),28px)}
 .dashboard.designed .panel-header{padding:clamp(12px,calc(var(--design-space)*.5),24px) clamp(16px,calc(var(--design-space)*.65),28px)}
 .dashboard.designed :is(.grid-2,.stats){gap:clamp(12px,calc(var(--design-space)*.5),24px)}
-.dashboard.designed .dash-nav a[aria-current=page],.dashboard.designed .count{color:var(--on-accent-soft,var(--accent))}
+.dashboard.designed .dash-nav a[aria-current=page]{color:var(--on-accent-soft,var(--accent))}
 .dashboard.design-broadsheet .page-header{border-bottom:4px double var(--text);padding-bottom:1rem}
 .dashboard.design-broadsheet :is(.panel,.stat){box-shadow:none}
 .dashboard.design-reference .page-header{border-bottom:1px solid var(--border);padding-bottom:1rem}

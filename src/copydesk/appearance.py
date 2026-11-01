@@ -20,6 +20,8 @@ from copydesk.colors import accent_tokens, ensure_contrast, mix
 
 FONTS = {
     "serif": "Iowan Old Style,Charter,Palatino,Georgia,serif",
+    "book": "Iowan Old Style,Charter,Sitka Text,Palatino Linotype,Georgia,serif",
+    "amiri": "Amiri,Georgia,serif",
     "sans": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif",
     "humanist": "Optima,Candara,Calibri,Trebuchet MS,sans-serif",
     "slab": "Rockwell,Roboto Slab,Georgia,serif",
@@ -28,7 +30,20 @@ FONTS = {
 UPLOADS = {"logo": "Publication logo", "logo_dark": "Logo for dark backgrounds",
            "email_logo": "Email logo", "favicon": "Publication icon",
            "hero_logo": "Homepage hero logo", "hero_logo_dark": "Homepage hero logo for dark backgrounds"}
+# The defaults before QuillSail's own style became the default look. The other
+# starting styles build on these, so they look the same as they always have.
+CLASSIC = {
+    "appearance.accent_color": "#1F5BD8", "appearance.article_font": "serif", "appearance.heading_font": "inherit",
+    "appearance.text_color": "#16181d", "appearance.muted_color": "#525866", "appearance.border_color": "#e1e4e9",
+    "appearance.dark_background": "", "appearance.dark_surface": "", "appearance.dark_text": "",
+    "appearance.corner_radius": 10, "appearance.color_mode": "auto",
+}
 PRESETS = {
+    "quillsail": {"title": "QuillSail", "description": "Ink on paper, hairline rules and one purple accent.", "values": {
+        "accent_color": "#6E4CC2", "background": "#ffffff", "surface": "#ffffff", "text_color": "#000000",
+        "muted_color": "#000000", "border_color": "#000000", "dark_background": "#000000",
+        "dark_surface": "#000000", "dark_text": "#dbdbdb", "article_font": "book", "heading_font": "amiri",
+        "corner_radius": 0, "color_mode": "light"}},
     "classic": {"title": "Classic", "description": "A familiar publication with generous reading space.", "values": {}},
     "broadsheet": {"title": "Broadsheet", "description": "Ink, warm paper, serif headlines and strong editorial rules.", "values": {
         "accent_color": "#222222", "background": "#faf8f2", "surface": "#faf8f2", "text_color": "#20201e",
@@ -60,40 +75,66 @@ VISUAL_KEYS = [d.key for d in settings.for_tab("appearance") if not d.key.starts
 }]
 
 
+DASHBOARD_SOURCES = {
+    "own": ("Its own design", "Starts in QuillSail's style. Choose a starting style and shape it below."),
+    "publication": ("Match the publication", "Uses your publication's colors, typography, spacing and installed theme."),
+}
+# Design files: settings tab, file format and the prefix of the keys they hold.
+DESIGN_FILES = {"appearance": ("quillsail.appearance.v1", "appearance", "publication"),
+                "dashboard_design": ("quillsail.dashboard.v1", "dashboard", "dashboard")}
+
+
 def preset_values(name: str) -> dict:
-    values = {key: settings.REGISTRY[key].default for key in VISUAL_KEYS}
+    values = {key: CLASSIC.get(key, settings.REGISTRY[key].default) for key in VISUAL_KEYS}
     values.update({f"appearance.{key}": value for key, value in PRESETS[name]["values"].items()})
     values["appearance.style"] = name
     return values
 
 
-def validate(values: dict) -> dict[str, str]:
+def dashboard_preset_values(name: str) -> dict:
+    """A starting style for the dashboard's own design. The sidebar logo choices stay."""
+    keep = {"brand_display", "logo_height", "custom_body_font", "custom_heading_font"}
+    return {f"dashboard.{key.removeprefix('appearance.')}": value for key, value in preset_values(name).items()
+            if key.removeprefix("appearance.") in settings.DASHBOARD_DESIGN_KEYS
+            and key.removeprefix("appearance.") not in keep}
+
+
+def dashboard_values() -> dict:
+    """The dashboard's own design, as the appearance keys design() reads."""
+    values = {f"appearance.{key}": settings.get(f"dashboard.{key}") for key in settings.DASHBOARD_DESIGN_KEYS}
+    for key in ("content_width", "reading_width"):
+        values[f"appearance.{key}"] = settings.REGISTRY[f"appearance.{key}"].default
+    return values
+
+
+def validate(values: dict, prefix: str = "appearance") -> dict[str, str]:
     errors = {}
-    for key in ("appearance.custom_body_font", "appearance.custom_heading_font"):
+    for key in (f"{prefix}.custom_body_font", f"{prefix}.custom_heading_font"):
         value = values.get(key, "")
         if value and not re.fullmatch(r"[\w\s,'\".\-]+", value, flags=re.UNICODE):
             errors[key] = "Use font names separated by commas, without CSS declarations or URLs."
     for role in ("body", "heading"):
-        key = "appearance.article_font" if role == "body" else "appearance.heading_font"
-        if values.get(key) == "custom" and not values.get(f"appearance.custom_{role}_font", "").strip():
-            errors[f"appearance.custom_{role}_font"] = "Enter a font stack, or choose one of the built-in typefaces."
+        key = f"{prefix}.article_font" if role == "body" else f"{prefix}.heading_font"
+        if values.get(key) == "custom" and not values.get(f"{prefix}.custom_{role}_font", "").strip():
+            errors[f"{prefix}.custom_{role}_font"] = "Enter a font stack, or choose one of the built-in typefaces."
     return errors
 
 
-def export_design() -> str:
-    return json.dumps({"format": "quillsail.appearance.v1", "settings": {
-        d.key: settings.get(d.key) for d in settings.for_tab("appearance")
+def export_design(tab: str = "appearance") -> str:
+    return json.dumps({"format": DESIGN_FILES[tab][0], "settings": {
+        d.key: settings.get(d.key) for d in settings.for_tab(tab)
     }}, indent=2) + "\n"
 
 
-def import_design(data: bytes) -> dict:
+def import_design(data: bytes, tab: str = "appearance") -> dict:
+    file_format, prefix, kind = DESIGN_FILES[tab]
     if len(data) > 100_000:
         raise ValueError("Design files must be smaller than 100 KB.")
     try:
         document = json.loads(data)
-        if document.get("format") != "quillsail.appearance.v1" or not isinstance(document.get("settings"), dict):
+        if document.get("format") != file_format or not isinstance(document.get("settings"), dict):
             raise ValueError
-        allowed = {d.key: d for d in settings.for_tab("appearance")}
+        allowed = {d.key: d for d in settings.for_tab(tab)}
         values = {}
         for key, raw in document["settings"].items():
             if key not in allowed or not isinstance(raw, (str, int, bool)):
@@ -103,11 +144,11 @@ def import_design(data: bytes) -> dict:
                 raise ValueError(error)
             values[key] = value
         combined = {key: settings.get(key) for key in allowed} | values
-        if validate(combined):
+        if validate(combined, prefix):
             raise ValueError("Check the custom font stacks in this design.")
         return values
     except (UnicodeError, TypeError, AttributeError, json.JSONDecodeError) as exc:
-        raise ValueError("Choose a QuillSail appearance JSON file.") from exc
+        raise ValueError(f"Choose a QuillSail {kind} design JSON file.") from exc
 
 
 def override(values: dict, images: dict | None = None) -> None:
@@ -169,9 +210,11 @@ def email_brand() -> dict:
     return {"src": src, "width": max(1, round(width * ratio)), "height": max(1, round(height * ratio))}
 
 
-def design() -> dict:
-    d = {key.removeprefix("appearance."): settings.get(key) for key in settings.REGISTRY if key.startswith("appearance.")}
-    d["enabled"] = settings.get("appearance.style", None) is not None or g.get("appearance_preview", False)
+def design(values: dict | None = None) -> dict:
+    values = values or {}
+    d = {key.removeprefix("appearance."): values.get(key, settings.get(key))
+         for key in settings.REGISTRY if key.startswith("appearance.")}
+    d["enabled"] = not d["core_styles"] or g.get("appearance_preview", False)
     d["body_font"] = FONTS.get(d["article_font"], d["custom_body_font"] or FONTS["sans"])
     d["heading_stack"] = d["body_font"] if d["heading_font"] == "inherit" else FONTS.get(
         d["heading_font"], d["custom_heading_font"] or FONTS["serif"])
@@ -180,11 +223,36 @@ def design() -> dict:
     d["dark_background"] = d["dark_background"] or "#121419"
     d["dark_surface"] = d["dark_surface"] or "#181b21"
     d["dark_text"] = d["dark_text"] or "#e8eaee"
-    d["dark_muted"] = mix(d["dark_background"], d["dark_text"], 0.7)
-    d["dark_border"] = mix(d["dark_background"], d["dark_text"], 0.2)
+    if d["style"] == "quillsail":
+        # Ink on paper: secondary text stays full ink, and dark mode softens white
+        # to 40% for rules and 14% for hover fills.
+        d["dark_muted"] = d["dark_text"]
+        d["dark_border"] = mix(d["dark_background"], "#ffffff", 0.4)
+        d["dark_fill"] = mix(d["dark_surface"], "#ffffff", 0.14)
+    else:
+        d["dark_muted"] = mix(d["dark_background"], d["dark_text"], 0.7)
+        d["dark_border"] = mix(d["dark_background"], d["dark_text"], 0.2)
+        d["dark_fill"] = mix(d["dark_surface"], d["dark_text"], .05)
     d["link"] = ensure_contrast(d["accent_color"], d["surface"], 4.5)
     d["dark_link"] = ensure_contrast(d["accent_color"], d["dark_surface"], 4.5)
+    # Primary actions keep white text on the accent in both color modes.
+    d["action"] = ensure_contrast(d["accent_color"], "#ffffff", 4.5)
     return d
+
+
+def dashboard_design(publication_design: dict | None = None) -> dict:
+    """The dashboard's own design, or the publication's when it matches.
+
+    Its own design still shows the publication's uploaded logos, so the
+    dashboard always shows whose publication it is.
+    """
+    d = publication_design or design()
+    if d["dashboard_theme"] == "publication":
+        return d
+    own = design(dashboard_values())
+    own["enabled"] = True
+    own["dashboard_css"] = settings.get("dashboard.custom_css")
+    return own
 
 
 def web_tokens(d: dict, *, dashboard: bool = False) -> Markup:
@@ -203,10 +271,15 @@ def web_tokens(d: dict, *, dashboard: bool = False) -> Markup:
              "text": d["text_color"], "muted": d["muted_color"], "border": d["border_color"],
              "accent": d["link"], "accent-hover": d["link"], "accent-soft": mix(d["surface"], d["link"], .08),
              "on-accent": ensure_contrast("#ffffff", d["link"], 4.5)}
-    dark = {"bg": d["dark_background"], "surface": d["dark_surface"], "surface-2": mix(d["dark_surface"], d["dark_text"], .05),
+    dark = {"bg": d["dark_background"], "surface": d["dark_surface"], "surface-2": d["dark_fill"],
             "text": d["dark_text"], "muted": d["dark_muted"], "border": d["dark_border"],
             "accent": d["dark_link"], "accent-hover": d["dark_link"], "accent-soft": mix(d["dark_surface"], d["dark_link"], .12),
             "on-accent": ensure_contrast("#16181d", d["dark_link"], 4.5)}
+    # Styles that keep the accent for actions only (QuillSail) use these.
+    light.update({"action": d["action"], "on-action": "#ffffff", "action-hover": light["text"],
+                  "on-action-hover": light["bg"], "disabled-opacity": ".4"})
+    dark.update({"action": d["action"], "on-action": "#ffffff", "action-hover": dark["surface-2"],
+                 "on-action-hover": dark["text"], "disabled-opacity": ".3"})
     for palette in (light, dark):
         if dashboard:
             # A host may choose very different page and panel backgrounds.

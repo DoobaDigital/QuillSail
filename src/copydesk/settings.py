@@ -118,9 +118,9 @@ define("business.enabled", False, "Accept business outreach", type="bool",
 # --- Appearance ----------------------------------------------------------------------
 define("appearance.theme", "default", "Theme", type="choice", choices=_themes, tab="appearance",
        help="Themes change the overall look. More can be installed in the themes folder.")
-define("appearance.accent_color", "#1F5BD8", "Accent color", type="color", tab="appearance",
+define("appearance.accent_color", "#6E4CC2", "Accent color", type="color", tab="appearance",
        help="Used for links and buttons. If it's too light or too dark to read, QuillSail adjusts it automatically.")
-define("appearance.article_font", "serif", "Article typeface", type="choice", tab="appearance",
+define("appearance.article_font", "book", "Article typeface", type="choice", tab="appearance",
        choices=[("serif", "Serif (traditional, bookish)"), ("sans", "Sans-serif (clean, modern)")])
 define("appearance.logo", "", "Logo", type="text", tab="appearance",
        help="Upload on the Appearance page. Shown instead of the publication name in the header.")
@@ -131,18 +131,25 @@ define("appearance.home_intro", "", "Home page introduction", type="markdown", t
 define("appearance.custom_css", "", "Custom CSS", type="code", tab="appearance",
        help="Advanced. Added after the theme's styles on the website and dashboard. Use .dashboard for dashboard-specific rules.")
 
-# Designer values are stored in the existing settings table. Missing values keep
-# older installations on their existing theme until an administrator saves a design.
-DESIGN_FONTS = [("inherit", "Follow body type"), ("serif", "Editorial serif"),
+# Designer values are stored in the existing settings table. The defaults are
+# QuillSail's own style (assets/README.md). Migration 0008 stored the previous
+# defaults for installations that had already changed their design.
+DESIGN_FONTS = [("inherit", "Follow body type"), ("serif", "Editorial serif"), ("book", "Book serif"),
                 ("sans", "Modern sans serif"), ("humanist", "Humanist sans serif"),
                 ("slab", "Bookish slab serif"), ("mono", "Monospace"), ("custom", "Custom font stack")]
 REGISTRY["appearance.article_font"].choices = DESIGN_FONTS[1:]
 REGISTRY["appearance.article_font"].label = "Body typeface"
 REGISTRY["appearance.theme"].label = "Installed template theme"
 REGISTRY["appearance.logo"].extra["upload"] = True
-define("appearance.style", "classic", "Starting style", type="choice", tab="appearance",
-       choices=[("classic", "Classic"), ("broadsheet", "Broadsheet"), ("brief", "Brief"),
-                ("reference", "Reference"), ("canvas", "Canvas")])
+define("appearance.style", "quillsail", "Starting style", type="choice", tab="appearance",
+       choices=[("quillsail", "QuillSail"), ("classic", "Classic"), ("broadsheet", "Broadsheet"),
+                ("brief", "Brief"), ("reference", "Reference"), ("canvas", "Canvas")])
+define("appearance.dashboard_theme", "own", "Dashboard design", type="choice", tab="dashboard_design",
+       choices=[("own", "Its own design"), ("publication", "Match the publication")])
+# Installations that changed their look before saving a design keep the built-in styles.
+define("appearance.core_styles", False, "Use the original built-in styles", type="bool", tab="internal")
+define("onboarding.appearance", "", "Getting started: appearance", type="choice", tab="internal",
+       choices=[("", "To do"), ("done", "Done"), ("skipped", "Skipped")])
 define("appearance.logo_dark", "", "Logo for dark backgrounds", tab="appearance", extra={"upload": True})
 define("appearance.email_logo", "", "Email logo", tab="appearance", extra={"upload": True})
 define("appearance.favicon", "", "Publication icon", tab="appearance", extra={"upload": True})
@@ -165,23 +172,26 @@ define("appearance.hero_show_overline", True, "Show hero overline", type="bool",
 define("appearance.hero_logo_width", 480, "Hero logo width (pixels)", type="int", tab="appearance", extra={"min": 120, "max": 1000})
 define("appearance.brand_display", "logo", "Masthead shows", type="choice", tab="appearance",
        choices=[("logo", "Logo, or publication name if no logo is uploaded"), ("both", "Logo and publication name"), ("name", "Publication name")])
-define("appearance.heading_font", "inherit", "Heading typeface", type="choice", choices=DESIGN_FONTS, tab="appearance")
+define("appearance.heading_font", "amiri", "Heading typeface", type="choice", tab="appearance",
+       choices=DESIGN_FONTS[:1] + [("amiri", "Amiri bold display")] + DESIGN_FONTS[1:])
 define("appearance.custom_body_font", "", "Custom body font stack", tab="appearance", max_length=200)
 define("appearance.custom_heading_font", "", "Custom heading font stack", tab="appearance", max_length=200)
-for _key, _label, _default in [
-    ("background", "Page background", "#ffffff"), ("surface", "Paper / card background", "#ffffff"),
-    ("text_color", "Body text", "#16181d"), ("muted_color", "Secondary text", "#525866"),
-    ("border_color", "Rules and borders", "#e1e4e9"),
-    ("dark_background", "Dark page background", ""), ("dark_surface", "Dark paper / card background", ""),
-    ("dark_text", "Dark body text", ""),
+# Dark colors may be blank, which derives them from the light palette.
+for _key, _label, _default, _blank in [
+    ("background", "Page background", "#ffffff", False), ("surface", "Paper / card background", "#ffffff", False),
+    ("text_color", "Body text", "#000000", False), ("muted_color", "Secondary text", "#000000", False),
+    ("border_color", "Rules and borders", "#000000", False),
+    ("dark_background", "Dark page background", "#000000", True),
+    ("dark_surface", "Dark paper / card background", "#000000", True),
+    ("dark_text", "Dark body text", "#dbdbdb", True),
 ]:
-    define(f"appearance.{_key}", _default, _label, type="color", tab="appearance", extra={"allow_blank": _default == ""})
+    define(f"appearance.{_key}", _default, _label, type="color", tab="appearance", extra={"allow_blank": _blank})
 for _key, _label, _default, _minimum, _maximum in [
     ("content_width", "Website width (pixels)", 1152, 720, 1600),
     ("reading_width", "Reading width (pixels)", 640, 420, 1000),
     ("body_size", "Article text size (pixels)", 18, 14, 26),
     ("line_height", "Line height (percent)", 170, 130, 220),
-    ("corner_radius", "Corner radius (pixels)", 10, 0, 32),
+    ("corner_radius", "Corner radius (pixels)", 0, 0, 32),
     ("logo_height", "Website logo height (pixels)", 40, 20, 120),
     ("email_width", "Email width (pixels)", 600, 480, 800),
     ("email_size", "Email text size (pixels)", 16, 14, 24),
@@ -191,11 +201,30 @@ for _key, _label, _default, _minimum, _maximum in [
 define("appearance.masthead", "left", "Masthead alignment", type="choice", tab="appearance", choices=[("left", "Left"), ("center", "Centered")])
 define("appearance.density", "comfortable", "Spacing", type="choice", tab="appearance", choices=[("compact", "Compact"), ("comfortable", "Comfortable"), ("spacious", "Spacious")])
 define("appearance.issue_layout", "stacked", "Issue layout", type="choice", tab="appearance", choices=[("stacked", "Continuous reading"), ("cards", "Individual story cards"), ("columns", "Two columns on wide screens")])
-define("appearance.color_mode", "auto", "Default color mode", type="choice", tab="appearance", choices=[("auto", "Follow the reader's device"), ("light", "Light"), ("dark", "Dark")])
+define("appearance.color_mode", "light", "Default color mode", type="choice", tab="appearance", choices=[("auto", "Follow the reader's device"), ("light", "Light"), ("dark", "Dark")])
 define("appearance.email_layout", "classic", "Email presentation", type="choice", tab="appearance", choices=[("classic", "Classic"), ("editorial", "Editorial"), ("digest", "Compact digest"), ("reference", "Reference"), ("cards", "Story cards")])
 define("appearance.email_css", "", "Custom email CSS", type="code", tab="appearance", max_length=40000,
        help="Applied to newsletter emails and inlined where supported. Email clients support a smaller set of CSS than browsers.")
 REGISTRY["appearance.custom_css"].max_length = 40000
+
+# The dashboard's own design mirrors the publication controls that apply to it.
+# It starts in QuillSail's style and shares the publication's uploaded logos.
+DASHBOARD_DESIGN_KEYS = [
+    "style", "brand_display", "logo_height", "article_font", "heading_font", "custom_body_font",
+    "custom_heading_font", "body_size", "line_height", "accent_color", "background", "surface", "text_color",
+    "muted_color", "border_color", "color_mode", "dark_background", "dark_surface", "dark_text", "density",
+    "corner_radius",
+]
+for _key in DASHBOARD_DESIGN_KEYS:
+    _source = REGISTRY[f"appearance.{_key}"]
+    define(f"dashboard.{_key}", _source.default, _source.label, type=_source.type, tab="dashboard_design",
+           choices=_source.choices, help=_source.help, max_length=_source.max_length, extra=dict(_source.extra))
+REGISTRY["dashboard.brand_display"].label = "Sidebar shows"
+REGISTRY["dashboard.logo_height"].label = "Logo height (pixels)"
+REGISTRY["dashboard.body_size"].label = "Text size (pixels)"
+REGISTRY["dashboard.color_mode"].choices = [("auto", "Follow the device"), ("light", "Light"), ("dark", "Dark")]
+define("dashboard.custom_css", "", "Dashboard CSS", type="code", tab="dashboard_design", max_length=40000,
+       help="Advanced. Added after the dashboard's design, on dashboard pages only.")
 
 define("hosting.keep_awake", False, "Keep this computer awake while public", type="bool", tab="hosting",
        help="Desktop only. Power settings and battery limits still apply.")

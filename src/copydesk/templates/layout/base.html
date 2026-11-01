@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="no-js" data-article-font="{{ setting('appearance.article_font') }}" data-default-theme="{{ theme_lock or (design.color_mode if design.enabled and not dashboard_default else 'auto') }}"{% if theme_lock %} data-theme-locked{% if theme_lock != 'auto' %} data-theme="{{ theme_lock }}"{% endif %}{% endif %}{% if design_preview %} data-design-preview{% endif %}>
+<html lang="en" class="no-js" data-article-font="{{ setting('appearance.article_font') }}" data-default-theme="{% if theme_lock %}{{ theme_lock }}{% else %}{% block default_color_mode %}{{ design.color_mode if design.enabled else 'auto' }}{% endblock %}{% endif %}"{% if theme_lock %} data-theme-locked{% if theme_lock != 'auto' %} data-theme="{{ theme_lock }}"{% endif %}{% endif %}{% if design_preview %} data-design-preview{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -30,9 +30,11 @@
   </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/copydesk.css', v=version) }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/highlight.css', v=version) }}">
+  {% block theme_styles %}
   {% for href in theme_stylesheets() %}
   <link rel="stylesheet" href="{{ href }}">
   {% endfor %}
+  {% endblock %}
   <style nonce="{{ csp_nonce() }}">
     :root { --accent: {{ accent.accent }}; --accent-hover: {{ accent.accent_hover }}; --accent-soft: {{ accent.accent_soft }}; --on-accent: {{ accent.on_accent }}; }
     @media (prefers-color-scheme: dark) {

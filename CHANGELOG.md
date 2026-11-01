@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.15.0 — Beta
+
+- Make QuillSail's own style the default for new publications on the website, dashboard and newsletter emails, following the brand guidelines: ink on paper, hairline rules, square corners with no shadows, Amiri headings, a book serif for body text, Avenir-style labels and buttons, and the logo purple for primary buttons, keyboard focus, progress, selected text and form errors. Light is the default; dark mode softens white to 86% for text, 40% for rules and 14% for fills. Add it as the QuillSail starting style.
+- Add a **Dashboard** designer under Settings → Appearance, so the dashboard can be customized like the publication: starting styles, typefaces, text size, colors, color mode, spacing, corners, sidebar logo display, dashboard-only CSS, a desktop/mobile preview, and its own design files. It starts in QuillSail's style; **Match the publication** is still available. Saving either design never changes the other. The dashboard always shows the publication's logos and icon.
+- Put **Change the appearance of your dashboard and newsletter** (or blog) first in Getting started, with a **Don't want to** option that completes it without changing anything.
+- Upgrading moves installations still on the untouched defaults to the QuillSail style. Installations whose look had been changed keep their design, and their dashboard keeps matching the publication (migration `0008`). Logos and homepage text are never changed.
+- Fix navigation counts that were invisible on dashboards using a publication design, and stop Getting started status icons from shrinking beside long labels.
+- Make the **Menu** buttons work on phones (#34). On the publication site, Menu now shows and hides the links. The dashboard drawer has a **Close menu** button where Menu was. Close menu, the dimmed area, Escape, Menu itself and tabbing out of the drawer all close it, reset `aria-expanded` and return focus. Without JavaScript, both pages still show the full navigation.
+
 ## 1.14.1 — Beta
 
 - Add locally bundled Gmail, Outlook and Cloudflare logos to connector buttons, including Cloudflare reconnect and API-token backup. Replace email-card initials with provider marks and retain visible accessible labels.

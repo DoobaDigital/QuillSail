@@ -52,7 +52,7 @@ def test_designer_requires_permission_and_csrf(app, client, editor_client):
     assert post(client, PREVIEW).status_code == 403
 
 
-@pytest.mark.parametrize("name,layout", [("classic", "classic"), ("broadsheet", "editorial"),
+@pytest.mark.parametrize("name,layout", [("quillsail", "classic"), ("classic", "classic"), ("broadsheet", "editorial"),
                                          ("brief", "digest"), ("reference", "reference"), ("canvas", "cards")])
 def test_presets_preview_website_and_email_without_writes(app, editor_client, name, layout):
     before = snapshot(app)
@@ -70,7 +70,10 @@ def test_presets_preview_website_and_email_without_writes(app, editor_client, na
     assert f"max-width:{values['appearance.email_width']}px".encode() in email.data
     assert "style-src 'unsafe-inline'" in email.headers["Content-Security-Policy"]
     assert snapshot(app) == before
-    assert b"designed design-" not in editor_client.get("/").data
+    live = editor_client.get("/").data
+    assert b"publication designed design-quillsail" in live
+    if name != "quillsail":
+        assert f"design-{name}".encode() not in live
 
 
 def test_unsaved_theme_preview_does_not_change_active_loader(app, editor_client):
@@ -110,6 +113,10 @@ def test_save_applies_to_website_dashboard_and_actual_newsletter_render(app, edi
         assert "Unsubscribe" in html and "Choose what you get" in html
         assert "A story" in plain and "A paragraph" in plain
         assert subject.endswith("A styled issue")
+    # The dashboard keeps its own theme until someone chooses to match the publication.
+    dash = editor_client.get(PATH).data
+    assert b'<body class="dashboard designed design-quillsail' in dash and b"--bg:#f4f0fa" not in dash
+    assert post(editor_client, PATH + "/dashboard", **{"appearance.dashboard_theme": "publication"}).status_code == 302
     dash = editor_client.get(PATH).data
     assert b"dashboard publication designed design-canvas" in dash
     assert b"css/publication.css" in dash and b"css/dashboard.css" in dash
@@ -132,7 +139,8 @@ def test_dashboard_preview_is_private_isolated_and_has_no_live_actions(app, edit
                 assert "disabled" in fields
 
     before = snapshot(app)
-    response = post(editor_client, PREVIEW, preview_format="dashboard", **appearance.preset_values(name), logo=(png(), "sample.png"))
+    response = post(editor_client, PREVIEW, preview_format="dashboard", **appearance.preset_values(name),
+                    logo=(png(), "sample.png"), **{"appearance.dashboard_theme": "publication"})
     assert response.status_code == 200, response.data[:300]
     assert f"dashboard publication designed design-{name}".encode() in response.data
     assert b"Dashboard preview" in response.data and b"Sample audience" in response.data
@@ -142,7 +150,7 @@ def test_dashboard_preview_is_private_isolated_and_has_no_live_actions(app, edit
     Actions().feed(response.get_data(as_text=True))
     assert snapshot(app) == before
     actual = editor_client.get(PATH).data
-    assert b"designed design-" not in actual
+    assert b'<body class="dashboard designed design-quillsail' in actual
     assert b"data:image/png;base64," not in actual
 
 
@@ -151,6 +159,7 @@ def test_dashboard_uses_saved_branding_dark_variant_icon_and_template_styles(app
     response = post(editor_client, **values,
                     logo=(png(), "logo.png"), logo_dark=(png(), "dark.png"), favicon=(png(), "icon.png"))
     assert response.status_code == 302
+    assert post(editor_client, PATH + "/dashboard", **{"appearance.dashboard_theme": "publication"}).status_code == 302
     page = editor_client.get("/dashboard/").data
     assert b"/theme/broadsheet/" in page
     assert b"dash-brand-identity" in page and b"logo-light" in page and b"logo-dark" in page
@@ -188,6 +197,7 @@ def test_dashboard_tokens_keep_text_readable_on_different_page_and_panel_colors(
 
 
 def test_default_dashboard_view_recovers_controls_without_resetting_the_saved_design(app, editor_client):
+    assert post(editor_client, PATH + "/dashboard", **{"appearance.dashboard_theme": "publication"}).status_code == 302
     assert post(editor_client, **appearance.preset_values("canvas"), **{"appearance.theme": "broadsheet", "appearance.custom_css": ".publication{display:none}"}).status_code == 302
     before = snapshot(app)
     response = editor_client.get(PATH + "?dashboard_style=default")
@@ -293,6 +303,9 @@ def test_custom_css_is_not_html_and_email_imports_never_fetch(app, editor_client
 
 
 def test_legacy_appearance_and_partial_posts_preserve_existing_values(app, editor_client):
+    with app.app_context():
+        settings.set_values({"appearance.core_styles": True} | appearance.CLASSIC)
+        db.session.commit()
     with app.test_request_context("/"):
         assert not appearance.design()["enabled"]
     assert post(editor_client, **{"appearance.accent_color": "#765432", "appearance.home_intro": "Welcome here"}).status_code == 302
@@ -300,4 +313,5 @@ def test_legacy_appearance_and_partial_posts_preserve_existing_values(app, edito
     with app.test_request_context("/"):
         assert settings.get("appearance.accent_color") == "#765432"
         assert settings.get("appearance.home_intro") == "Welcome here"
+        assert settings.get("appearance.text_color") == "#16181d"
         assert appearance.design()["enabled"]

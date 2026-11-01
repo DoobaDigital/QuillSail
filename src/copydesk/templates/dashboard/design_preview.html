@@ -11,7 +11,8 @@
 <section class="panel">
   <div class="panel-header"><h2>Ready for your next edition</h2><span class="badge">Draft</span></div>
   <div class="panel-body stack">
-    <p>Your publication's colors, typography, spacing and branding carry into the tools you use every day.</p>
+    {% if dash_design.dashboard_theme == 'publication' %}<p>Your publication's colors, typography, spacing and branding carry into the tools you use every day.</p>
+    {% else %}<p>Your dashboard has its own design, separate from the publication. Your logo still shows whose publication it is.</p>{% endif %}
     <div class="field"><label for="preview-title">Article title</label><input id="preview-title" type="text" value="A fresh perspective" disabled></div>
     <div class="cluster"><button class="button button-primary" type="button" disabled>Save draft</button><button class="button" type="button" disabled>Preview</button></div>
     {{ ui.alert('info', 'These are sample controls. Previewing does not change your publication or send email.') }}

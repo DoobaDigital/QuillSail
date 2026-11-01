@@ -14,7 +14,7 @@ from copydesk.utils import COLOR_RE
 
 LIGHT_BACKGROUND = "#ffffff"
 DARK_BACKGROUND = "#1e2129"
-DEFAULT_ACCENT = "#1F5BD8"
+DEFAULT_ACCENT = "#6E4CC2"
 
 
 def hex_to_rgb(value: str) -> tuple[int, int, int]:

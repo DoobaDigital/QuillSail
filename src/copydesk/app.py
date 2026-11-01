@@ -390,6 +390,8 @@ def _register_template_helpers(app: Flask, state: CopydeskState) -> None:
     @app.context_processor
     def _context() -> dict[str, Any]:
         design = appearance.design()
+        in_dashboard = has_request_context() and request.blueprint == "dash"
+        dash_design = appearance.dashboard_design(design) if in_dashboard else design
         return {
             "launch_soon": launch.is_soon(),
             "launch_signup_available": launch.signup_available() if launch.is_soon() else True,
@@ -410,12 +412,13 @@ def _register_template_helpers(app: Flask, state: CopydeskState) -> None:
             "Markup": Markup,
             "design": design,
             "design_tokens": appearance.web_tokens(design),
-            "dashboard_design_tokens": lambda: appearance.web_tokens(design, dashboard=True),
+            "dash_design": dash_design,
+            "dashboard_design_tokens": lambda: appearance.web_tokens(dash_design, dashboard=True),
             "appearance_image": appearance.image_url,
             "custom_css_version": appearance.css_version,
             "home_hero": appearance.home_hero,
             "email_brand": appearance.email_brand,
             "design_preview": g.get("appearance_preview", False),
-            "dashboard_default": has_request_context() and request.blueprint == "dash" and request.args.get("dashboard_style") == "default" and not g.get("appearance_preview"),
+            "dashboard_default": in_dashboard and request.args.get("dashboard_style") == "default" and not g.get("appearance_preview"),
             "es": appearance.email_design(design),
         }
