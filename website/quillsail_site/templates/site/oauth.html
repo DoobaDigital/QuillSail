@@ -6,6 +6,7 @@
 <p>{{ provider_name|default('Cloudflare') }} has approved this connection. The authorization code will go to:</p>
 <p><strong>{{ target }}</strong></p>
 <p>Continue only if this is the QuillSail publication where you started. If you do not recognize this address, close this page.</p>
+{% if config.privacy_contact %}<p>Read the <a href="{{ url_for('site.privacy') }}">hosted sign-in privacy policy</a> for details about data access, sharing, protection and deletion.</p>{% endif %}
 <form method="post">
 <input type="hidden" name="csrf" value="{{ csrf }}">
 <input type="hidden" name="transfer" value="{{ transfer }}">
