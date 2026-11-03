@@ -110,4 +110,4 @@ Administrators change these under **Dashboard → Settings**, and they're stored
 
 ---
 
-*Generated from the QuillSail 1.15.0 source code by `scripts/build_reference_docs.py`.*
+*Generated from the QuillSail 1.16.0 source code by `scripts/build_reference_docs.py`.*

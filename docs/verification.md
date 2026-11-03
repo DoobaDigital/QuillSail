@@ -2,7 +2,7 @@
 
 QuillSail is beta software. These are development checks, not an independent security audit. Private deployment addresses, access details and operations records are excluded from the public repository.
 
-## Unreleased — visual editor, HTML writing and Jekyll import (#20)
+## 1.16.0 Beta — visual editor, HTML writing and Jekyll import (#20)
 
 Writers can now choose a visual editor, Markdown or safe HTML, and site owners can import a Jekyll blog. Markdown stays the saved format for visual writing. The server reads Markdown for the editor with the same parser that renders it, each block keeps its original text, and only edited blocks are rewritten.
 
@@ -12,7 +12,7 @@ Security coverage includes script, style, event attribute, `javascript:`, frame,
 
 In headless Chrome against a disposable local site, 114 scripted checks passed with no Content Security Policy violations on the page. They composed a full article from the toolbar and keyboard, saved, reopened and downloaded it; confirmed unusual Markdown round-trips byte for byte; pasted hostile HTML (nothing ran and no requests left the page); pasted and dropped images; converted between formats with warnings; restored unsaved work; navigated by keyboard; checked labels on every control; checked 390px layouts and dialogs; edited and previewed with JavaScript off; and ran a dashboard import through the background worker to a working redirect. Dark mode text contrast measured at least 6:1 on the controls sampled. These checks also found two older bugs, now fixed: Preview left the text area showing, and the "unsaved changes" notice always appeared.
 
-Not checked: Firefox, Safari, a real screen reader, a real phone, or live pastes from Word and Google Docs (pasted HTML was simulated). PostgreSQL, MariaDB, Docker and native desktop checks run in CI, because they aren't available locally. No release was published.
+Not checked: Firefox, Safari, a real screen reader, a real phone, or live pastes from Word and Google Docs (pasted HTML was simulated). PostgreSQL, MariaDB, Docker and native desktop checks aren't available locally. They passed in CI on the pull request.
 
 Application tests: 988 passed, 3 skipped. Website tests: 183 passed, 1 skipped. Node tests: 37 passed. Ruff, generated references, public-file boundaries, wheel and sdist metadata and a clean wheel installation passed.
 
