@@ -24,6 +24,12 @@ Configure the private website environment with `QUILLSAIL_GOOGLE_CLIENT_ID`, `QU
 
 Provide the required app branding, verified domains and privacy policy, publish the Google app appropriately, and complete sensitive-scope verification for public distribution. Set `QUILLSAIL_GMAIL_ENABLED=1` only when the intended Google audience is configured; enabling it while the Google app is in Testing still permits only listed test users. The default is disabled. Application code does not claim that verification has happened merely because credentials exist.
 
+#### Privacy policy and verification review
+
+Review the hosted service's `/privacy` policy against actual operation before setting `QUILLSAIL_PRIVACY_CONTACT` to the approved public contact address. The policy must identify QuillSail and explicitly explain the Google data accessed, its use and recipients, security protections, and retention and deletion. Confirm that production HTTPS, access logging and backup practices match those disclosures. Publication operators control their own stored connections, audit records and backups; do not promise a deletion deadline or retention period that they do not implement.
+
+Use the public HTML policy URL in Google Auth Platform's branding configuration, and keep it linked from the homepage and sign-in interface. After a verification reviewer requests corrections, deploy the updated policy and check that it is publicly accessible without signing in. Update the configured URL if it changed, save and resubmit any required verification changes in the console, then reply directly to the review email with the policy URL and the corrected disclosures. A code merge alone does not resubmit the app or notify the reviewer. See [Google's privacy-policy verification guidance](https://support.google.com/cloud/answer/13806988).
+
 Back up the private environment, especially the broker proof key. Changing that key invalidates existing shared renewal proofs and requires reconnecting affected publications. Rotating the Google client secret on the backend does not distribute a new secret to publications. Website metadata at `/.well-known/quillsail/gmail.json` contains only the public client ID, send-only scope and HTTPS endpoints. See [website configuration](../website/README.md#configuration).
 
 ### Use a custom Gmail application
