@@ -1,9 +1,9 @@
-FROM python:3.13-slim-bookworm AS builder
+FROM python:3.15-slim-bookworm AS builder
 WORKDIR /build
 COPY . .
 RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels '.[server,postgres,mysql]'
 
-FROM python:3.13-slim-bookworm AS runtime
+FROM python:3.15-slim-bookworm AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     COPYDESK_CONFIG=/var/lib/copydesk/copydesk.toml
