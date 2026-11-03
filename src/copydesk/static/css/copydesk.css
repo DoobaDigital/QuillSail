@@ -2724,6 +2724,359 @@ input[type="color"] {
   font-weight: 600;
 }
 
+/* A wide table or long address scrolls inside the editor, never the whole page. */
+.editor-layout > *,
+.editor {
+  min-width: 0;
+}
+
+/* Display rules above would otherwise show a hidden notice, textarea, toolbar control or panel. */
+.editor-page [hidden] {
+  display: none !important;
+}
+
+.editor-format {
+  padding: 0.85rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.editor-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  align-items: center;
+  padding: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-modes .tool {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.editor-modes .tool:hover {
+  background: var(--bg-muted);
+  color: var(--text);
+}
+
+.editor-modes .tool[aria-pressed="true"] {
+  background: var(--action, var(--accent));
+  color: var(--on-action, #fff);
+}
+
+.editor-modes .divider {
+  width: 1px;
+  height: 1.4rem;
+  margin: 0 0.25rem;
+  background: var(--border-strong);
+}
+
+.editor-modes .spacer {
+  flex: 1;
+}
+
+.editor-toolbar .tool[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.editor-toolbar .tool:disabled,
+.editor-toolbar .tool-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.editor-toolbar .tool-select {
+  width: auto;
+  height: 2.25rem;
+  padding-block: 0;
+  font-size: 0.9rem;
+}
+
+.editor-context {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.editor-context-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  align-items: center;
+}
+
+.editor-context-group + .editor-context-group:not([hidden]) {
+  margin-top: 0.5rem;
+}
+
+.editor-context-group input,
+.editor-context-group select {
+  width: auto;
+  max-width: 14rem;
+  padding-block: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.editor-notice {
+  margin: 0;
+  padding: 0.5rem 0.85rem;
+  border-top: 1px solid var(--border);
+  background: var(--info-soft);
+  font-size: 0.9rem;
+}
+
+/* The visual editor reads like the finished piece, using the same .prose styles. */
+.visual-content {
+  position: relative;
+  min-height: 28rem;
+  max-width: none;
+  margin: 0;
+  padding: 1.25rem;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  white-space: break-spaces;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0;
+  outline: none;
+}
+
+.visual-content pre {
+  white-space: pre-wrap;
+}
+
+.visual-content li {
+  position: relative;
+}
+
+.visual-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.visual-content table {
+  display: block;
+  overflow-x: auto;
+}
+
+.visual-content td,
+.visual-content th {
+  position: relative;
+  min-width: 4rem;
+}
+
+.visual-content.ProseMirror-focused {
+  outline: none;
+}
+
+.visual-content .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--text-subtle);
+  pointer-events: none;
+}
+
+.visual-content .ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.visual-content.ProseMirror-hideselection *::selection {
+  background: transparent;
+}
+
+.visual-content.ProseMirror-hideselection {
+  caret-color: transparent;
+}
+
+.visual-content img.ProseMirror-separator {
+  display: inline !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+
+.visual-content .selectedCell {
+  background: var(--accent-soft);
+}
+
+.ProseMirror-gapcursor {
+  display: none;
+  position: absolute;
+  pointer-events: none;
+}
+
+.ProseMirror-gapcursor::after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: -2px;
+  width: 20px;
+  border-top: 1px solid var(--text);
+  animation: visual-cursor-blink 1.1s steps(2, start) infinite;
+}
+
+@keyframes visual-cursor-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.ProseMirror-focused .ProseMirror-gapcursor {
+  display: block;
+}
+
+.visual-drop-cursor {
+  background: var(--accent);
+}
+
+.visual-content .task-list-item {
+  display: flex;
+  gap: 0.5em;
+  align-items: baseline;
+  list-style: none;
+}
+
+.visual-content .task-list-item > .task-list-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.visual-content .task-list-item > .task-list-body > :first-child {
+  margin-top: 0;
+}
+
+.visual-content .task-list-item-checkbox {
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.visual-content .callout-title {
+  user-select: none;
+}
+
+.visual-content .callout-body > :last-child {
+  margin-bottom: 0;
+}
+
+.visual-content .footnote-ref {
+  color: var(--accent);
+  font-family: var(--font-sans);
+  font-size: 0.75em;
+}
+
+.visual-footnote {
+  margin-top: 1.5em;
+  padding-top: 0.5em;
+  border-top: 1px solid var(--border);
+  font-size: 0.85em;
+}
+
+.visual-footnote-label {
+  display: block;
+  color: var(--text-subtle);
+  font-family: var(--font-sans);
+  font-size: 0.85em;
+  font-weight: 600;
+  user-select: none;
+}
+
+.visual-footnote-body > :last-child {
+  margin-bottom: 0;
+}
+
+.visual-raw {
+  margin-block: 1em;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+
+.visual-raw-label {
+  margin: 0;
+  padding: 0.3rem 0.65rem;
+  border-bottom: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  user-select: none;
+}
+
+.visual-raw pre {
+  margin: 0;
+  padding: 0.65rem;
+  border: 0;
+  background: none;
+}
+
+.visual-uploading {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.85em;
+}
+
+/* Typed HTML can show collapsible sections and media. */
+.prose details {
+  margin-block: 1em;
+  padding: 0.6em 1em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.prose summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.prose video,
+.prose iframe,
+.prose audio {
+  display: block;
+  max-width: 100%;
+  margin: 1.5em auto;
+  border: 0;
+}
+
+.prose video,
+.prose iframe {
+  width: 100%;
+  border-radius: var(--radius);
+}
+
+.prose iframe {
+  aspect-ratio: 16 / 9;
+  height: auto;
+}
+
+@media (max-width: 40rem) {
+  .editor-modes .spacer {
+    display: none;
+  }
+
+  .visual-content {
+    min-height: 20rem;
+    padding: 1rem;
+  }
+}
+
 .editor-sidebar {
   display: grid;
   align-content: start;

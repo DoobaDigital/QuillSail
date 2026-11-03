@@ -206,6 +206,9 @@ def maintenance() -> None:
         edge.schedule_snapshot()
     newsletter.start_due_issues()
     db.session.commit()
+    from copydesk.jekyll_import import remove_stale_imports
+
+    remove_stale_imports()
 
 
 def heartbeat() -> None:

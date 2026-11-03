@@ -55,7 +55,7 @@
             <figcaption>Alt text: {{ article.cover_alt or "missing" }}</figcaption>
           </figure>
           {% endif %}
-          <div class="prose">{{ article.body|markdown(base_url=article.source_url) }}</div>
+          <div class="prose">{{ article|render_body }}</div>
         </article>
       </div>
     </section>

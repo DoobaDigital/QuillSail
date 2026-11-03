@@ -38,6 +38,7 @@ from copydesk.models import (
     article_tags,
 )
 from copydesk.subscribers import signup_groups
+from copydesk.text import render_body, render_markdown
 from copydesk.utils import utcnow
 
 bp = Blueprint("public", __name__)
@@ -350,7 +351,7 @@ def feed():
             "updated": max(a.updated_at, a.published_at),
             "authors": [u.display_name for u in a.authors],
             "summary": a.excerpt or a.subtitle,
-            "content": a.body,
+            "content_html": render_body(a),
             "category": a.section.name if a.section else "",
         }
         for a in rows
@@ -370,7 +371,7 @@ def issues_feed():
             "updated": i.sent_at or i.published_at,
             "authors": [settings.get("site.name")],
             "summary": "",
-            "content": i.intro,
+            "content_html": render_markdown(i.intro),
             "category": "",
         }
         for i in rows

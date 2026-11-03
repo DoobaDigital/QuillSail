@@ -18,6 +18,7 @@ bp = Blueprint("dash", __name__, url_prefix="/dashboard")
 DASHBOARD_PERMISSIONS = (
     "review", "manage_issues", "send_issues", "manage_subscribers", "manage_users",
     "manage_groups", "manage_pages", "manage_settings", "view_log", "manage_competitions", "manage_business",
+    "import_content",
 )
 
 NAV = [
@@ -39,6 +40,7 @@ NAV = [
         ("domain", "Domain", "server", "manage_settings"),
         ("launch_page", "Launch", "send", "manage_settings"),
         ("settings", "Settings", "sliders", "manage_settings"),
+        ("import_jekyll", "Import a blog", "upload", "import_content"),
         ("log", "Activity log", "activity", "view_log"),
         ("system", "System status", "server", "manage_settings"),
     ]),
@@ -91,6 +93,7 @@ from copydesk.views.dashboard import (  # noqa: E402,F401 - registers routes
     competitions,
     email,
     groups,
+    imports,
     issues,
     launch,
     log,

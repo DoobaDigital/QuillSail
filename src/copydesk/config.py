@@ -53,6 +53,7 @@ ENV_OVERRIDES: dict[str, tuple[str, str]] = {
     "COPYDESK_MAIL_RATE_PER_MINUTE": ("mail", "rate_per_minute"),
     "COPYDESK_UPLOADS_DIR": ("uploads", "dir"),
     "COPYDESK_UPLOADS_MAX_SIZE_MB": ("uploads", "max_size_mb"),
+    "COPYDESK_UPLOADS_MAX_IMPORT_MB": ("uploads", "max_import_mb"),
     "COPYDESK_JOBS_RUN_IN_WEB": ("jobs", "run_in_web"),
     "COPYDESK_PROXY_HOPS": ("server", "proxy_hops"),
     "COPYDESK_EXTENSIONS": ("extensions", "enabled"),
@@ -102,6 +103,7 @@ class Config:
     mail: MailConfig
     uploads_dir: Path
     max_upload_mb: int
+    max_import_mb: int
     run_jobs_in_web: bool
     proxy_hops: int
     extensions: list[str]
@@ -262,6 +264,7 @@ def _build(data: dict[str, Any], file_path: Path | None, root: Path) -> Config:
         mail=mail_cfg,
         uploads_dir=_path(uploads.get("dir", data_dir / "uploads"), root),
         max_upload_mb=_int(uploads.get("max_size_mb", 10), "uploads.max_size_mb"),
+        max_import_mb=_int(uploads.get("max_import_mb", 200), "uploads.max_import_mb"),
         run_jobs_in_web=_bool(jobs.get("run_in_web", False), "jobs.run_in_web"),
         proxy_hops=_int(server.get("proxy_hops", 0), "server.proxy_hops"),
         extensions=list(enabled),

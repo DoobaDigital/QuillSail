@@ -70,6 +70,9 @@ rate_per_minute = 120
 # Uploaded images (covers, avatars, pictures in articles). Back this folder up.
 dir = "data/uploads"
 max_size_mb = 10
+# The largest zip file you can upload when importing a blog. If you run behind nginx,
+# raise its client_max_body_size to match.
+max_import_mb = 200
 
 
 [jobs]

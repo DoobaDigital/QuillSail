@@ -1,0 +1,33 @@
+{% extends "layout/dashboard.html" %}
+
+{% block page_title %}Import a blog{% endblock %}
+{% block lead %}<p class="lead">Bring your posts, images and old addresses over from Jekyll. You'll see exactly what will happen before anything changes.</p>{% endblock %}
+
+{% block content %}
+{% if error %}<div class="flashes">{{ ui.alert("error", error) }}</div>{% endif %}
+
+<div class="grid-main-side">
+  <form class="panel" method="post" enctype="multipart/form-data">
+    <div class="panel-header"><h2>Upload your site</h2></div>
+    <div class="panel-body form">
+      {{ forms.csrf() }}
+      <div class="field">
+        <label for="f-site">Zip file of your site's source folder</label>
+        <p class="help" id="f-site-help">Use the folder with _config.yml and _posts, not the built _site folder. A GitHub “Download ZIP” works. Up to {{ max_mb|number }} MB.</p>
+        <input id="f-site" type="file" name="site" accept=".zip,application/zip" required aria-describedby="f-site-help">
+      </div>
+      <div class="form-actions"><button class="button button-primary" type="submit">{{ icon("upload") }} Check this site</button></div>
+    </div>
+  </form>
+
+  <aside class="panel">
+    <div class="panel-header"><h2>What happens</h2></div>
+    <div class="panel-body stack small">
+      <p>Posts keep their dates, tags and images. Drafts stay drafts. The first category becomes the section.</p>
+      <p>Liquid and plugins are never run. Common tags are converted, and anything else is listed so you can fix it.</p>
+      <p>Importing sends no email and doesn't notify anyone. Running it again skips posts already imported.</p>
+      <p>Old addresses redirect only if this site answers on your old domain. GitHub Pages can't send redirects, so a blog moving off github.io needs <code>jekyll-redirect-from</code> on the old site.</p>
+    </div>
+  </aside>
+</div>
+{% endblock %}

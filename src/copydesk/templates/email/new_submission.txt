@@ -1,7 +1,7 @@
 {{ "Resubmitted" if resubmitted else "New submission" }}: {{ article.display_title }}
 By {{ article.authors|map(attribute="display_name")|join(" and ") }} · {{ article.word_count }} words{% if article.section %} · {{ article.section.name }}{% endif %}
 
-{{ article.body|excerpt(320) }}
+{{ article|body_excerpt(320) }}
 {% if article.author_note %}
 Note from the writer: {{ article.author_note|truncate(300) }}
 {% endif %}

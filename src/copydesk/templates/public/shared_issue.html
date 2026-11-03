@@ -22,7 +22,7 @@
         {% if item.title %}<h2>{{ item.title }}</h2>{% endif %}
         {% if item.article %}
           {{ ui.byline(item.article, avatars=False, date=False) }}
-          {% if not item.article.is_published %}<div class="prose">{{ item.article.body|markdown }}</div>
+          {% if not item.article.is_published %}<div class="prose">{{ item.article|render_body }}</div>
           {% elif item.display == 'full' and item.web_html %}<div class="prose">{{ item.web_html }}</div>
           {% else %}<p>{{ item.summary }}</p><p><a href="{{ item.url }}">Read the full article {{ icon('arrow-right') }}</a></p>{% endif %}
         {% else %}<div class="prose">{{ item.web_html }}</div>{% endif %}

@@ -15,7 +15,8 @@ The project originated in work for **The Tech Stack**, a publication operated by
 ## What it includes
 
 - A blog mode with direct publishing for trusted publishers, plus optional inclusion in local or separately hosted newsletters.
-- Markdown writing with previews, image uploads, co-authors, revision history, and submission timelines.
+- Writing in a visual editor, Markdown or safe HTML, with previews, image uploads, co-authors, revision history, and submission timelines.
+- Import an existing Jekyll blog with its posts, dates, images, and old addresses.
 - Editorial review, feedback, change requests, acceptance, publication, and email notifications.
 - Custom groups such as students, staff, and alumni, with custom profile fields, approval rules, domain rules, badges, and permissions.
 - Double opt-in subscriptions without requiring an account; preference management and one-click unsubscribe.
@@ -94,7 +95,7 @@ The [documentation overview](docs/README.md) lists every guide. The same pages a
 - [Configuration](docs/configuration.md)
 - [Email and delivery](docs/email.md)
 - [Connect Gmail, Outlook, or an SMTP server](docs/email-connectors.md)
-- [Editorial and administrator guide](docs/user-guide.md): [setup](docs/publication-setup.md), [groups and permissions](docs/groups-and-permissions.md), [writing and review](docs/writing-and-review.md), [blog and newsletter modes](docs/publication-modes.md), [newsletter issues](docs/newsletter-issues.md), [subscribers and accounts](docs/subscribers.md) and [competitions](docs/competitions.md)
+- [Editorial and administrator guide](docs/user-guide.md): [setup](docs/publication-setup.md), [groups and permissions](docs/groups-and-permissions.md), [writing and review](docs/writing-and-review.md), [importing a blog](docs/importing-a-blog.md), [blog and newsletter modes](docs/publication-modes.md), [newsletter issues](docs/newsletter-issues.md), [subscribers and accounts](docs/subscribers.md) and [competitions](docs/competitions.md)
 - [Business outreach and private issue previews](docs/business-outreach.md)
 - [Themes](docs/theming.md)
 - [Extensions](docs/extensions.md)

@@ -70,6 +70,7 @@ def external_submission_url(article):
         "version": 1,
         "source": external_url("public.article", slug=article.slug),
         "body": article.body,
+        "body_format": article.body_format,
     }, ensure_ascii=False).encode("utf-8")).decode("ascii")
     return urlunsplit((
         url.scheme, url.netloc, url.path.rstrip("/") + "/write/from-blog",

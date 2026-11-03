@@ -9,7 +9,7 @@
   · {{ article.word_count }} words{% if article.section %} · {{ article.section.name }}{% endif %}
 </p>
 {% if article.subtitle %}<p style="{{ es.p }}color:#5b616e;">{{ article.subtitle }}</p>{% endif %}
-<div style="{{ es.quote }}">{{ article.body|excerpt(320) }}</div>
+<div style="{{ es.quote }}">{{ article|body_excerpt(320) }}</div>
 {% if article.author_note %}<p style="{{ es.small }}"><strong>Note from the writer:</strong> {{ article.author_note|truncate(300) }}</p>{% endif %}
 {{ m.button(url, "Review it") }}
 {% endblock %}

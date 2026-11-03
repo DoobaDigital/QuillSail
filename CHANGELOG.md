@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add a visual editor (#20), so writers can format a piece without knowing Markdown. It covers headings, emphasis, links, lists, task lists, quotes, code with a language, tables, footnotes, boxes and images, with undo, keyboard shortcuts and sensible pasting. Pieces are still saved as Markdown. Opening and saving a piece changes nothing, only edited blocks are rewritten, and anything the editor can't show stays as editable source. Without JavaScript, the text area works as before.
+- Add an HTML writing mode. Pieces can use safe HTML, including collapsible sections, video, audio and YouTube or Vimeo embeds. Scripts, styles, forms and the site's own classes are always removed, and newsletters get links or open text where email apps can't cope. Switching to Markdown says what will change first.
+- Add `quillsail import-jekyll` and **Dashboard → Import a blog**, which bring in a Jekyll site's posts, dates, tags, images and old addresses, with a report before anything changes. Liquid and plugins are never run. Old addresses redirect, importing sends no email and fires no webhooks, and it's safe to repeat. The new **Import a blog** permission controls it, and `[uploads] max_import_mb` sets the largest upload.
+- Add downloading a piece's saved text as `.md` or `.html`.
+- Fix the editor's Preview, which left the text area showing above it, and the "unsaved changes" notice, which appeared even with nothing to restore.
+- Add migration `0009`. Existing articles stay Markdown and render exactly as before. The API adds `body_format` and `source`. PyYAML is now a runtime dependency.
+
 ## 1.15.0 — Beta
 
 - Make QuillSail's own style the default for new publications on the website, dashboard and newsletter emails, following the brand guidelines: ink on paper, hairline rules, square corners with no shadows, Amiri headings, a book serif for body text, Avenir-style labels and buttons, and the logo purple for primary buttons, keyboard focus, progress, selected text and form errors. Light is the default; dark mode softens white to 86% for text, 40% for rules and 14% for fills. Add it as the QuillSail starting style.

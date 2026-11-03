@@ -77,32 +77,101 @@
         <div class="editor" data-editor
              data-preview-url="{{ url_for('write.preview') }}"
              data-upload-url="{{ url_for('write.upload') }}"
+             data-visual-url="{{ url_for('write.visual') }}"
+             data-convert-url="{{ url_for('write.convert') }}"
              data-backup-key="cd-draft-{{ article.id }}"
              data-max-words="{{ max_words }}">
-          <div class="editor-toolbar" role="toolbar" aria-label="Formatting">
-            <button type="button" class="tool" data-editor-tab="write" aria-pressed="true" hidden>Write</button>
-            <button type="button" class="tool" data-editor-tab="preview" aria-pressed="false" hidden>{{ icon("eye") }} Preview</button>
+          {# Without JavaScript this is how a writer chooses a format. With it, the buttons below take over. #}
+          <div class="editor-format" data-editor-format>
+            {{ forms.select("body_format", "Format", body_format_choices, values.body_format, errors=errors,
+                            help="This changes how your text is read. It doesn't rewrite what you've typed, so use Preview to check it.") }}
+          </div>
+          <div class="editor-modes" role="group" aria-label="How you're writing" data-editor-modes hidden>
+            <button type="button" class="tool" data-editor-mode="visual" aria-pressed="false" hidden>Visual</button>
+            <button type="button" class="tool" data-editor-mode="markdown" aria-pressed="false">Markdown</button>
+            <button type="button" class="tool" data-editor-mode="html" aria-pressed="false">HTML</button>
+            <button type="button" class="tool" data-editor-mode="markdown_html" aria-pressed="false" hidden>Markdown with HTML</button>
             <span class="divider" aria-hidden="true"></span>
-            <button type="button" class="tool" data-md="bold" title="Bold (Ctrl+B)" aria-label="Bold">{{ icon("bold") }}</button>
-            <button type="button" class="tool" data-md="italic" title="Italic (Ctrl+I)" aria-label="Italic">{{ icon("italic") }}</button>
-            <button type="button" class="tool" data-md="heading" title="Heading" aria-label="Heading">{{ icon("heading") }}</button>
-            <button type="button" class="tool" data-md="link" title="Link (Ctrl+K)" aria-label="Link">{{ icon("link") }}</button>
-            <button type="button" class="tool" data-md="quote" title="Quote" aria-label="Quote">{{ icon("quote") }}</button>
-            <button type="button" class="tool" data-md="code" title="Code" aria-label="Code">{{ icon("code") }}</button>
-            <button type="button" class="tool" data-md="ul" title="Bulleted list" aria-label="Bulleted list">{{ icon("list") }}</button>
-            <button type="button" class="tool" data-md="ol" title="Numbered list" aria-label="Numbered list">{{ icon("list-ordered") }}</button>
-            <button type="button" class="tool" data-md="callout" title="Tip box" aria-label="Tip box">{{ icon("bulb") }}</button>
-            <button type="button" class="tool" data-md="image" title="Add an image" aria-label="Add an image">{{ icon("image") }}</button>
+            <button type="button" class="tool" data-editor-tab="preview" aria-pressed="false">{{ icon("eye") }} Preview</button>
             <span class="spacer"></span>
             <a class="tool" href="#markdown-help">Formatting help</a>
           </div>
+          <div class="editor-toolbar" role="toolbar" aria-label="Formatting" data-editor-toolbar>
+            <button type="button" class="tool" data-md="undo" data-only="visual" title="Undo (Ctrl+Z)" aria-label="Undo" hidden>{{ icon("undo") }}</button>
+            <button type="button" class="tool" data-md="redo" data-only="visual" title="Redo (Ctrl+Y)" aria-label="Redo" hidden>{{ icon("redo") }}</button>
+            <label class="visually-hidden" for="f-text-style">Text style</label>
+            <select class="tool-select" id="f-text-style" data-visual-style data-only="visual" hidden>
+              <option value="paragraph">Paragraph</option>
+              {% for level in range(1, 7) %}<option value="{{ level }}">Heading {{ level }}</option>{% endfor %}
+            </select>
+            <button type="button" class="tool" data-md="heading" data-only="source" title="Heading" aria-label="Heading">{{ icon("heading") }}</button>
+            <span class="divider" aria-hidden="true"></span>
+            <button type="button" class="tool" data-md="bold" title="Bold (Ctrl+B)" aria-label="Bold">{{ icon("bold") }}</button>
+            <button type="button" class="tool" data-md="italic" title="Italic (Ctrl+I)" aria-label="Italic">{{ icon("italic") }}</button>
+            <button type="button" class="tool" data-md="strike" title="Strikethrough (Ctrl+Shift+X)" aria-label="Strikethrough">{{ icon("strike") }}</button>
+            <button type="button" class="tool" data-md="link" title="Link (Ctrl+K)" aria-label="Link">{{ icon("link") }}</button>
+            <button type="button" class="tool" data-md="code" title="Code (Ctrl+E)" aria-label="Code">{{ icon("code") }}</button>
+            <span class="divider" aria-hidden="true"></span>
+            <button type="button" class="tool" data-md="ul" title="Bulleted list" aria-label="Bulleted list">{{ icon("list") }}</button>
+            <button type="button" class="tool" data-md="ol" title="Numbered list" aria-label="Numbered list">{{ icon("list-ordered") }}</button>
+            <button type="button" class="tool" data-md="task" title="Task list" aria-label="Task list">{{ icon("task") }}</button>
+            <button type="button" class="tool" data-md="quote" title="Quote" aria-label="Quote">{{ icon("quote") }}</button>
+            <span class="divider" aria-hidden="true"></span>
+            <button type="button" class="tool" data-md="codeblock" title="Code block" aria-label="Code block">{{ icon("code-block") }}</button>
+            <button type="button" class="tool" data-md="table" title="Table" aria-label="Table">{{ icon("table") }}</button>
+            <button type="button" class="tool" data-md="callout" title="Highlighted box" aria-label="Highlighted box">{{ icon("bulb") }}</button>
+            <button type="button" class="tool" data-md="footnote" data-hide-for="html" title="Footnote" aria-label="Footnote">{{ icon("footnote") }}</button>
+            <button type="button" class="tool" data-md="hr" title="Dividing line" aria-label="Dividing line">{{ icon("rule") }}</button>
+            <button type="button" class="tool" data-md="image" title="Add an image" aria-label="Add an image">{{ icon("image") }}</button>
+          </div>
+          <div class="editor-context" data-visual-context hidden>
+            <div class="editor-context-group" data-context="table" hidden>
+              <span class="small muted">Table:</span>
+              <button type="button" class="button button-small" data-md="addRowBefore">Row above</button>
+              <button type="button" class="button button-small" data-md="addRowAfter">Row below</button>
+              <button type="button" class="button button-small" data-md="addColumnBefore">Column left</button>
+              <button type="button" class="button button-small" data-md="addColumnAfter">Column right</button>
+              <button type="button" class="button button-small" data-md="deleteRow">Delete row</button>
+              <button type="button" class="button button-small" data-md="deleteColumn">Delete column</button>
+              <button type="button" class="button button-small" data-md="deleteTable">Delete table</button>
+            </div>
+            <div class="editor-context-group" data-context="code" hidden>
+              <label class="small" for="f-code-language">Code language</label>
+              <input id="f-code-language" list="code-languages" autocomplete="off" spellcheck="false" placeholder="python" data-code-language>
+              <datalist id="code-languages">
+                {% for language in ("bash", "c", "cpp", "csharp", "css", "go", "html", "java", "javascript", "json", "kotlin", "markdown", "php", "python", "ruby", "rust", "sql", "swift", "toml", "typescript", "yaml") %}<option value="{{ language }}"></option>{% endfor %}
+              </datalist>
+            </div>
+            <div class="editor-context-group" data-context="callout" hidden>
+              <label class="small" for="f-callout-kind">Box type</label>
+              <select id="f-callout-kind" data-callout-kind>
+                <option value="note">Note</option>
+                <option value="tip">Tip</option>
+                <option value="warning">Warning</option>
+              </select>
+              <label class="small" for="f-callout-title">Box title</label>
+              <input id="f-callout-title" autocomplete="off" placeholder="Optional" data-callout-title>
+              <button type="button" class="button button-small" data-md="callout">Remove box</button>
+            </div>
+            <div class="editor-context-group" data-context="task" hidden>
+              <button type="button" class="button button-small" data-md="check" data-check-label>Mark as done</button>
+            </div>
+            <div class="editor-context-group" data-context="image" hidden>
+              <button type="button" class="button button-small" data-md="imageAlt">Edit image description</button>
+            </div>
+            <div class="editor-context-group" data-context="raw" hidden>
+              <span class="small muted">The visual editor can't show this part, so it stays as Markdown. Edit it as text. It's saved exactly as you type it.</span>
+            </div>
+          </div>
           <label class="visually-hidden" for="f-body">Your piece</label>
-          {% if errors.get("body") %}<p class="error-text">{{ errors.body }}</p>{% endif %}
-          <textarea id="f-body" name="body" data-editor-input placeholder="Start writing. Paste or drop images straight in.">{{ values.body }}</textarea>
+          {% if errors.get("body") %}<p class="error-text" id="f-body-error">{{ errors.body }}</p>{% endif %}
+          <textarea id="f-body" name="body" data-editor-input placeholder="Start writing. Paste or drop images straight in."{% if errors.get("body") %} aria-describedby="f-body-error" aria-invalid="true"{% endif %}>{{ values.body }}</textarea>
+          <div class="visual-editor" data-visual-editor hidden></div>
           <div class="editor-preview" data-editor-preview hidden></div>
+          <p class="editor-notice" data-editor-notice role="status" hidden></p>
           <div class="editor-status">
             <span data-word-count>{{ pluralize(article.word_count, "word") }}</span>
-            <span>Markdown · Ctrl+S saves</span>
+            <span data-mode-label>{{ body_formats.get(values.body_format, "Markdown") }} · Ctrl+S saves</span>
           </div>
         </div>
 
@@ -130,22 +199,32 @@
 
         <details id="markdown-help" class="card">
           <summary><strong>Formatting help</strong></summary>
-          <div class="table-wrap section">
-            <table class="table">
-              <thead><tr><th scope="col">Type this</th><th scope="col">To get</th></tr></thead>
-              <tbody>
-                <tr><td><code>## Heading</code></td><td>A section heading</td></tr>
-                <tr><td><code>**bold**</code> and <code>_italic_</code></td><td><strong>bold</strong> and <em>italic</em></td></tr>
-                <tr><td><code>[link text](https://example.com)</code></td><td>A link</td></tr>
-                <tr><td><code>- item</code> or <code>1. item</code></td><td>A bulleted or numbered list</td></tr>
-                <tr><td><code>&gt; quote</code></td><td>A quotation</td></tr>
-                <tr><td><code>`code`</code></td><td>Inline <code>code</code></td></tr>
-                <tr><td><code>```python</code> … <code>```</code></td><td>A code block with syntax highlighting</td></tr>
-                <tr><td><code>![description](image-url)</code></td><td>An image (or use the image button)</td></tr>
-                <tr><td><code>::: tip</code> … <code>:::</code></td><td>A highlighted box (also <code>note</code> and <code>warning</code>)</td></tr>
-                <tr><td><code>Text[^1]</code> and <code>[^1]: Note</code></td><td>A footnote</td></tr>
-              </tbody>
-            </table>
+          <div class="stack section">
+            <p>You can write three ways. <strong>Visual</strong> looks like the finished piece. <strong>Markdown</strong> and <strong>HTML</strong> let you type the formatting yourself. Whichever you choose, your piece is checked before it's shown, so scripts, styles and forms are removed.</p>
+            <h3 class="card-title">Markdown</h3>
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th scope="col">Type this</th><th scope="col">To get</th></tr></thead>
+                <tbody>
+                  <tr><td><code>## Heading</code></td><td>A section heading</td></tr>
+                  <tr><td><code>**bold**</code>, <code>_italic_</code> and <code>~~struck~~</code></td><td><strong>bold</strong>, <em>italic</em> and <s>struck</s></td></tr>
+                  <tr><td><code>[link text](https://example.com)</code></td><td>A link</td></tr>
+                  <tr><td><code>- item</code> or <code>1. item</code></td><td>A bulleted or numbered list</td></tr>
+                  <tr><td><code>- [ ] item</code> and <code>- [x] item</code></td><td>A task list</td></tr>
+                  <tr><td><code>&gt; quote</code></td><td>A quotation</td></tr>
+                  <tr><td><code>`code`</code></td><td>Inline <code>code</code></td></tr>
+                  <tr><td><code>```python</code> … <code>```</code></td><td>A code block with syntax highlighting</td></tr>
+                  <tr><td><code>![description](image-url)</code></td><td>An image (or use the image button)</td></tr>
+                  <tr><td><code>| A | B |</code>, then <code>| --- | --- |</code></td><td>A table</td></tr>
+                  <tr><td><code>::: tip</code> … <code>:::</code></td><td>A highlighted box (also <code>note</code> and <code>warning</code>)</td></tr>
+                  <tr><td><code>Text[^1]</code> and <code>[^1]: Note</code></td><td>A footnote</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <h3 class="card-title">HTML</h3>
+            <p>Use ordinary tags for text, lists, tables, images and links. <code>&lt;details&gt;</code>, <code>&lt;video&gt;</code> and <code>&lt;audio&gt;</code> work too, and <code>&lt;iframe&gt;</code> works for YouTube and Vimeo. In newsletters, video, audio and collapsed sections become links or open text.</p>
+            <h3 class="card-title">Keyboard shortcuts</h3>
+            <p class="small">Ctrl is Command on a Mac. In the visual editor: Ctrl+B bold, Ctrl+I italic, Ctrl+Shift+X strikethrough, Ctrl+E code, Ctrl+K link, Ctrl+Alt+1 to 6 headings, Ctrl+Alt+0 paragraph, Ctrl+Shift+7 numbered list, Ctrl+Shift+8 bulleted list, Ctrl+Shift+9 task list, Ctrl+Shift+B quote, Ctrl+Alt+C code block, Ctrl+Z undo, Ctrl+Y redo. Shift+Enter starts a new line in the same paragraph. Tab moves between table cells and indents lists. Press Escape or Alt+F10 to move from your text to the toolbar.</p>
           </div>
         </details>
       </div>
@@ -190,6 +269,7 @@
           {% if guidelines %}<li>{{ icon("book") }} <a href="{{ url_for('public.page', slug=guidelines.slug) }}" target="_blank" rel="noopener">Writing guidelines</a></li>{% endif %}
           <li>{{ icon("history") }} <a href="{{ url_for('write.history', article_id=article.id) }}">Version history</a></li>
           <li>{{ icon("eye") }} <a href="{{ url_for('public.article', slug=article.slug) }}" target="_blank" rel="noopener">Preview the full page</a> (saved version)</li>
+          <li>{{ icon("download") }} <a href="{{ url_for('write.download', article_id=article.id) }}">Download as {{ "HTML" if article.body_format == "html" else "Markdown" }}</a> (saved version)</li>
           {% if article.status == "draft" and article.submitted_at is none and not is_editor %}
           <li>{{ icon("trash") }} <button class="link-button danger" type="submit" form="delete-form">Delete this draft</button></li>
           {% endif %}
@@ -204,8 +284,81 @@
   {{ forms.csrf() }}
 </form>
 {% endif %}
+
+{# Dialogs sit outside the main form, so pressing Enter in one never submits the piece. #}
+<dialog class="editor-dialog" data-link-dialog aria-labelledby="editor-link-title">
+  <form method="dialog" novalidate>
+    <div class="dialog-body stack">
+    <h2 id="editor-link-title">Link</h2>
+    <div class="field">
+      <label for="f-link-url">Web address</label>
+      <p class="error-text" id="f-link-url-error" data-link-error hidden></p>
+      <input id="f-link-url" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://" aria-describedby="f-link-url-error" data-link-url>
+    </div>
+    <div class="field">
+      <label for="f-link-text">Text to show</label>
+      <input id="f-link-text" type="text" autocomplete="off" data-link-text>
+    </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="button button-danger" type="submit" value="remove" data-link-remove hidden>Remove link</button>
+      <button class="button" type="submit" value="cancel">Cancel</button>
+      <button class="button button-primary" type="submit" value="ok" data-link-save>Save link</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="editor-dialog" data-image-dialog aria-labelledby="editor-image-title">
+  <form method="dialog" novalidate>
+    <div class="dialog-body stack">
+    <h2 id="editor-image-title">Describe this image</h2>
+    <div class="field">
+      <label for="f-image-alt">Image description (alt text)</label>
+      <p class="help" id="f-image-alt-help">People using screen readers hear this instead of seeing the image.</p>
+      <textarea id="f-image-alt" rows="3" aria-describedby="f-image-alt-help" data-image-alt></textarea>
+    </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="button button-primary" type="submit" value="ok">Save description</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="editor-dialog" data-footnote-dialog aria-labelledby="editor-footnote-title">
+  <form method="dialog" novalidate>
+    <div class="dialog-body stack">
+    <h2 id="editor-footnote-title">Add a footnote</h2>
+    <div class="field">
+      <label for="f-footnote-text">Footnote text</label>
+      <p class="help" id="f-footnote-text-help">This appears at the end of your piece, with a number linking back to this spot.</p>
+      <textarea id="f-footnote-text" rows="3" aria-describedby="f-footnote-text-help" data-footnote-text></textarea>
+    </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="button" type="submit" value="cancel">Cancel</button>
+      <button class="button button-primary" type="submit" value="ok">Add footnote</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="editor-dialog" data-convert-dialog aria-labelledby="editor-convert-title">
+  <form method="dialog" novalidate>
+    <div class="dialog-body stack">
+    <h2 id="editor-convert-title">Switch to Markdown?</h2>
+    <p>This rewrites your piece in Markdown. Your text stays, but some formatting may not.</p>
+    <ul class="small" data-convert-warnings hidden></ul>
+    <p class="small">You can switch back straight away if you haven't changed anything. Nothing is saved until you save.</p>
+    </div>
+    <div class="dialog-actions">
+      <button class="button" type="submit" value="cancel">Keep it as it is</button>
+      <button class="button button-primary" type="submit" value="ok">Switch to Markdown</button>
+    </div>
+  </form>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='vendor/prosemirror/editor-kit.min.js', v=version) }}" defer></script>
+<script src="{{ url_for('static', filename='js/visual-editor.js', v=version) }}" defer></script>
 <script src="{{ url_for('static', filename='js/editor.js', v=version) }}" defer></script>
 {% endblock %}

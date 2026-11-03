@@ -63,7 +63,9 @@ def default_csp() -> str:
         "img-src 'self' data: https:; "
         "font-src 'self' data:; "
         "connect-src 'self'; "
-        "frame-src 'self'; "
+        "media-src 'self' https:; "
+        # Keep these hosts in step with EMBED_HOSTS in text.py.
+        "frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; "
         "frame-ancestors 'self'; "
         f"form-action {form_action}; "
         "base-uri 'self'; "

@@ -12,6 +12,7 @@ This guide is for the people who run a publication day to day: administrators, e
 ## Every week
 
 - [Writing and review](writing-and-review.md): how members write, and how editors review, request changes, accept and publish.
+- [Importing a blog](importing-a-blog.md): how to bring over a Jekyll blog with its posts, images and old addresses.
 - [Newsletter issues](newsletter-issues.md): putting an issue together, aiming parts of it at groups, testing, scheduling and delivery reports.
 - [Subscribers and accounts](subscribers.md): sign-ups, imports and exports, unsubscribes, and what members can do with their accounts.
 

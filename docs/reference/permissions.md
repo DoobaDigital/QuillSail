@@ -49,6 +49,7 @@ A person's permissions are the combined permissions of every group they belong t
 | --- | --- | --- |
 | Manage pages and sections | `manage_pages` | Edit pages such as About, and the list of sections. |
 | Change site settings | `manage_settings` | Change the publication's name, look, email and sign-up settings. |
+| Import a blog | `import_content` | Import posts, images and old addresses from another blog. Imported posts go live without review. |
 | See the activity log | `view_log` | See who did what on the site, and when. |
 
 ### Competitions

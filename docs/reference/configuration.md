@@ -29,6 +29,7 @@ Each variable overrides one value in the file. Lists, such as `COPYDESK_EXTENSIO
 | `COPYDESK_MAIL_RATE_PER_MINUTE` | `[mail] rate_per_minute` |
 | `COPYDESK_UPLOADS_DIR` | `[uploads] dir` |
 | `COPYDESK_UPLOADS_MAX_SIZE_MB` | `[uploads] max_size_mb` |
+| `COPYDESK_UPLOADS_MAX_IMPORT_MB` | `[uploads] max_import_mb` |
 | `COPYDESK_JOBS_RUN_IN_WEB` | `[jobs] run_in_web` |
 | `COPYDESK_PROXY_HOPS` | `[server] proxy_hops` |
 | `COPYDESK_EXTENSIONS` | `[extensions] enabled` |
@@ -123,6 +124,9 @@ rate_per_minute = 120
 # Uploaded images (covers, avatars, pictures in articles). Back this folder up.
 dir = "data/uploads"
 max_size_mb = 10
+# The largest zip file you can upload when importing a blog. If you run behind nginx,
+# raise its client_max_body_size to match.
+max_import_mb = 200
 
 
 [jobs]

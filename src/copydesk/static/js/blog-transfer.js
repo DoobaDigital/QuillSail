@@ -36,6 +36,9 @@
       sessionStorage.removeItem(key);
     }
     if (transfer && receiver.dataset.transferFill === "true") {
+      if (transfer.body_format === "html" || transfer.body_format === "markdown_html") {
+        receiver.querySelector('[name="body_format"]').value = transfer.body_format;
+      }
       receiver.querySelector('[name="body"]').value = transfer.body;
       status.textContent = "The full article was transferred. Review it and add a newsletter blurb before submitting.";
       try { sessionStorage.removeItem(key); } catch (_) {}

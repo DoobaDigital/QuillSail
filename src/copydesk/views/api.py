@@ -16,7 +16,7 @@ from copydesk.db import db
 from copydesk.helpers import external_url, json_object, paginate
 from copydesk.models import Article, Issue, Section, Tag, article_tags
 from copydesk.security import csrf_exempt, too_many
-from copydesk.text import excerpt, render_markdown
+from copydesk.text import body_excerpt, excerpt, render_body, render_markdown
 from copydesk.utils import is_valid_email, normalize_email
 
 bp = Blueprint("api", __name__, url_prefix="/api/v1")
@@ -67,7 +67,7 @@ def article_json(article: Article, *, full: bool = False) -> dict:
         "title": article.display_title,
         "subtitle": article.subtitle,
         "url": external_url("public.article", slug=article.slug),
-        "summary": article.excerpt or article.subtitle or excerpt(article.body),
+        "summary": article.excerpt or article.subtitle or body_excerpt(article),
         "section": {"slug": article.section.slug, "name": article.section.name} if article.section else None,
         "tags": [t.name for t in article.tags],
         "authors": [author_json(a) for a in article.authors],
@@ -79,8 +79,11 @@ def article_json(article: Article, *, full: bool = False) -> dict:
         "source_author": article.source_author or None,
     }
     if full:
-        data["html"] = str(render_markdown(article.body, base_url=article.source_url))
-        data["markdown"] = article.body
+        data["html"] = str(render_body(article))
+        data["body_format"] = article.body_format
+        data["source"] = article.body
+        # Kept for existing clients. HTML articles have no Markdown to offer.
+        data["markdown"] = None if article.body_format == "html" else article.body
     return data
 
 

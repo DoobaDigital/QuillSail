@@ -36,7 +36,7 @@ from copydesk.helpers import external_url, state
 from copydesk.mail import Email, Mailer, MailError
 from copydesk.models import Article, Delivery, Group, Issue, IssueItem, Job, Subscriber, User
 from copydesk.notify import reply_to_address, unsubscribe_headers
-from copydesk.text import email_html, render_markdown
+from copydesk.text import body_text, email_html, render_body, render_markdown
 from copydesk.utils import join_names, slugify, utcnow
 
 log = logging.getLogger("copydesk.newsletter")
@@ -232,7 +232,7 @@ def prepare_items(
             if article is None or (not email and not include_unpublished and not article.is_published):
                 continue
             full_allowed = item.display == "full" and article.visibility == "public"
-            body_html = render_markdown(article.body, base_url=article.source_url) if full_allowed else ""
+            body_html = render_body(article) if full_allowed else ""
             prepared.append(PreparedItem(
                 kind="article",
                 title=article.display_title,
@@ -241,7 +241,7 @@ def prepare_items(
                 byline=join_names([a.display_name for a in article.authors]),
                 summary=(article.newsletter_blurb.strip() if item.display == "blurb"
                          else item.body.strip() or article.summary),
-                text=article.body if full_allowed else "",
+                text=body_text(article) if full_allowed else "",
                 html=for_email(body_html),
                 web_html=body_html,
                 reading_minutes=max(1, round(article.word_count / 230)) if article.word_count else 0,

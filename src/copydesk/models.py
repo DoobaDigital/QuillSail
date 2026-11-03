@@ -376,6 +376,7 @@ class Article(Base):
     newsletter_blurb: Mapped[str] = mapped_column(String(5000), default="")
     subtitle: Mapped[str] = mapped_column(String(300), default="")
     body: Mapped[str] = mapped_column(Text, default="")
+    body_format: Mapped[str] = mapped_column(String(20), default="markdown")
     excerpt: Mapped[str] = mapped_column(Text, default="")
     cover_image: Mapped[str] = mapped_column(String(255), default="")
     cover_alt: Mapped[str] = mapped_column(String(300), default="")
@@ -439,9 +440,9 @@ class Article(Base):
     @property
     def summary(self) -> str:
         """Restricted bodies never become an automatically generated public teaser."""
-        from copydesk.text import excerpt
+        from copydesk.text import body_excerpt
 
-        return self.excerpt or self.subtitle or (excerpt(self.body) if self.visibility == "public" else "")
+        return self.excerpt or self.subtitle or (body_excerpt(self) if self.visibility == "public" else "")
 
 
 class ArticleRevision(Base):
@@ -454,10 +455,24 @@ class ArticleRevision(Base):
     title: Mapped[str] = mapped_column(String(200), default="")
     subtitle: Mapped[str] = mapped_column(String(300), default="")
     body: Mapped[str] = mapped_column(Text, default="")
+    body_format: Mapped[str] = mapped_column(String(20), default="markdown")
     summary: Mapped[str] = mapped_column(String(255), default="")
     word_count: Mapped[int] = mapped_column(default=0)
 
     user: Mapped[User | None] = relationship()
+
+
+class ArticleRedirect(Base):
+    """An address an imported post used to have. Old links keep working through it."""
+
+    __tablename__ = "article_redirects"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    old_path: Mapped[str] = mapped_column(String(512), unique=True)
+    article_id: Mapped[int] = mapped_column(ForeignKey("articles.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    article: Mapped[Article] = relationship()
 
 
 class ArticleEvent(Base):

@@ -45,6 +45,9 @@ Some content is private by design:
 - **Content Security Policy**: pages allow scripts and styles only from the site itself, or inline code carrying a fresh random value for each request. Templates and extensions use the `csp_nonce()` helper for any inline code.
 - **Headers**: responses include `X-Content-Type-Options: nosniff`, a referrer policy and a permissions policy. Pages can't be framed by other sites. Pages for signed-in people, and pages that show private tokens, are marked `private, no-store`.
 - **Markdown**: raw HTML in Markdown is never rendered, and all rendered HTML is sanitized again before it's shown.
+- **Typed HTML**: pieces written in HTML, or imported as Markdown with HTML, go through a stricter sanitizer. It removes scripts, styles, forms, event attributes and `style=`, keeps only the classes Markdown itself produces, makes checkboxes inert, and allows frames only for YouTube and Vimeo, sandboxed. The Content Security Policy lists only those two hosts in `frame-src`.
+- **Visual editor**: pasted content is reduced to what the editor's document model can hold, and what's saved is Markdown, which goes through the same rendering as everything else.
+- **Blog imports**: Jekyll, Liquid and plugins are never run, and YAML is read with a safe loader. Zip files with unsafe paths, symbolic links or too much content are rejected whole, and images are re-encoded like any upload.
 - **Uploads**: every image is decoded and re-saved, which strips metadata such as GPS location, and very large or long animated images are refused. Uploaded files are public once someone knows their address.
 
 ## Secrets

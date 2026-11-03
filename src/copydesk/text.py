@@ -9,6 +9,11 @@ automatic links, syntax-highlighted code blocks, and callouts::
 
 Raw HTML in Markdown is never rendered, and the output is sanitized as a second
 line of defense. Extensions can add Markdown plugins (see ``hooks``).
+
+An article's body can also be typed as HTML, or be Markdown with HTML mixed in
+(see ``BODY_FORMATS``). There the sanitizer is the only safeguard, so typed HTML
+goes through the stricter ``sanitize_authored``. Writers can be strangers, so it
+never allows scripts, styles, forms or the classes the site's interface uses.
 """
 
 from __future__ import annotations
@@ -18,7 +23,7 @@ import re
 from html import escape, unescape
 from html.parser import HTMLParser
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, urljoin, urlsplit
 
 import nh3
 from flask import current_app, has_app_context
@@ -32,6 +37,7 @@ from mdit_py_plugins.tasklists import tasklists_plugin
 from pygments import highlight as pygments_highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
+from pygments.token import STANDARD_TYPES
 from pygments.util import ClassNotFound
 
 from copydesk.utils import slugify, truncate, word_count
@@ -67,7 +73,78 @@ ALLOWED_ATTRIBUTES = {
 }
 URL_SCHEMES = {"http", "https", "mailto"}
 
+BODY_FORMATS = {
+    "markdown": "Markdown",
+    "html": "HTML",
+    "markdown_html": "Markdown with HTML",
+}
+DEFAULT_BODY_FORMAT = "markdown"
+
+AUTHORED_TAGS = ALLOWED_TAGS | {
+    "audio", "caption", "cite", "details", "dfn", "iframe", "q", "samp", "small", "source",
+    "summary", "time", "track", "u", "var", "video", "wbr",
+}
+AUTHORED_ATTRIBUTES = {
+    **ALLOWED_ATTRIBUTES,
+    "audio": {"src", "controls", "preload", "loop"},
+    "details": {"open"},
+    "dfn": {"title"},
+    "iframe": {"src", "title", "width", "height"},
+    "source": {"src", "type"},
+    "td": {"class", "colspan", "rowspan"},
+    "th": {"class", "colspan", "rowspan", "scope"},
+    "time": {"datetime"},
+    "track": {"src", "kind", "srclang", "label", "default"},
+    "video": {"src", "poster", "controls", "width", "height", "preload", "loop", "muted", "playsinline"},
+}
+# Values typed HTML can't choose: checkboxes stay inert, media shows its controls,
+# and an embed gets no more access to the page or the reader's browser than it needs.
+AUTHORED_FORCED_ATTRIBUTES = {
+    "audio": {"controls": "controls"},
+    "iframe": {
+        "allowfullscreen": "allowfullscreen",
+        "loading": "lazy",
+        "referrerpolicy": "strict-origin-when-cross-origin",
+        "sandbox": "allow-same-origin allow-scripts allow-presentation allow-popups",
+    },
+    "img": {"loading": "lazy"},
+    "input": {"disabled": "disabled", "type": "checkbox"},
+    "video": {"controls": "controls"},
+}
+# Only classes the Markdown renderer itself produces. Everything else on the site
+# (buttons, alerts, forms, navigation) must not be reachable from an article.
+AUTHORED_CLASSES = {
+    "a": {"footnote-backref"},
+    "aside": {"callout", "callout-note", "callout-tip", "callout-warning"},
+    "hr": {"footnotes-sep"},
+    "input": {"task-list-item-checkbox"},
+    "li": {"footnote-item", "task-list-item"},
+    "ol": {"contains-task-list", "footnotes-list"},
+    "p": {"callout-title"},
+    "pre": {"highlight"},
+    "section": {"footnotes"},
+    "span": {name for name in STANDARD_TYPES.values() if name},
+    "sup": {"footnote-ref"},
+    "td": {"align-center", "align-left", "align-right"},
+    "th": {"align-center", "align-left", "align-right"},
+    "ul": {"contains-task-list"},
+}
+_CODE_CLASS_RE = re.compile(r"language-[\w+#.-]{1,40}", re.A)
+_FOOTNOTE_IDS = {
+    "a": re.compile(r"fnref\d+(:\d+)?", re.A),
+    "li": re.compile(r"fn\d+", re.A),
+    "sup": re.compile(r"fnref\d+(:\d+)?", re.A),
+}
+_HEADING_ID_RE = re.compile(r"[\w-]{1,100}", re.A)
+_DIMENSION_RE = re.compile(r"\d{1,4}", re.A)
+_YOUTUBE_RE = re.compile(r"/embed/([\w-]{6,20})/?", re.A)
+_VIMEO_RE = re.compile(r"/video/(\d{1,20})/?", re.A)
+# Keep these hosts in step with frame-src in security.default_csp.
+EMBED_HOSTS = ("https://www.youtube-nocookie.com", "https://player.vimeo.com")
+
 _ALIGN_RE = re.compile(r'style="text-align:(left|right|center)"')
+_CELL_ALIGN_RE = re.compile(r'<(td|th) style="text-align:(left|right|center)"')
+_IFRAME_RE = re.compile(r"<iframe\b([^>]*)>.*?</iframe>", re.S)
 _PARAGRAPH_RE = re.compile(r"<p>(.*?)</p>", re.S)
 _WEB_FORMATTER = HtmlFormatter(nowrap=True)
 
@@ -103,10 +180,12 @@ def _render_image(self, tokens, idx, options, env):
     return RendererHTML.image(self, tokens, idx, options, env)
 
 
-def build_markdown(setups: list | tuple = ()) -> MarkdownIt:
+def build_markdown(
+    setups: list | tuple = (), *, html: bool = False, typographer: bool = True
+) -> MarkdownIt:
     md = MarkdownIt(
         "commonmark",
-        {"html": False, "linkify": True, "typographer": True, "highlight": _highlight},
+        {"html": html, "linkify": True, "typographer": typographer, "highlight": _highlight},
     )
     md.enable(["table", "strikethrough", "linkify", "replacements", "smartquotes"])
     md.use(footnote_plugin)
@@ -120,20 +199,34 @@ def build_markdown(setups: list | tuple = ()) -> MarkdownIt:
     return md
 
 
-_default_markdown: MarkdownIt | None = None
+_default_markdown: dict[str, MarkdownIt] = {}
+# markdown renders pieces; markdown_html also lets typed HTML through to the sanitizer;
+# markdown_source keeps the text as written, for tools that read the source.
+_MARKDOWN_OPTIONS = {
+    "markdown": {},
+    "markdown_html": {"html": True},
+    "markdown_source": {"typographer": False},
+}
 
 
-def _markdown() -> MarkdownIt:
-    global _default_markdown
+def _markdown(kind: str = "markdown") -> MarkdownIt:
     if has_app_context():
         state = current_app.extensions.get("copydesk")
         if state is not None:
-            if state.markdown is None:
-                state.markdown = build_markdown(state.hooks.markdown_setups)
-            return state.markdown
-    if _default_markdown is None:
-        _default_markdown = build_markdown()
-    return _default_markdown
+            parser = getattr(state, kind)
+            if parser is None:
+                parser = build_markdown(state.hooks.markdown_setups, **_MARKDOWN_OPTIONS[kind])
+                setattr(state, kind, parser)
+            return parser
+    if kind not in _default_markdown:
+        _default_markdown[kind] = build_markdown(**_MARKDOWN_OPTIONS[kind])
+    return _default_markdown[kind]
+
+
+def markdown_tokens(text: str | None, *, kind: str = "markdown_source") -> tuple[list[Any], dict]:
+    """Parse Markdown with the site's plugins, without rendering it."""
+    env: dict = {}
+    return _markdown(kind).parse(text or "", env), env
 
 
 def sanitize(html: str) -> str:
@@ -146,6 +239,68 @@ def sanitize(html: str) -> str:
         link_rel=None,
         strip_comments=True,
     )
+
+
+def embed_url(value: str) -> str | None:
+    """The address to frame for an approved video embed, or None for anything else."""
+    url = urlsplit(value)
+    if url.scheme != "https" or url.username or url.password or url.port:
+        return None
+    if url.hostname in ("www.youtube.com", "youtube.com", "www.youtube-nocookie.com"):
+        match = _YOUTUBE_RE.fullmatch(url.path)
+        if not match:
+            return None
+        start = parse_qs(url.query).get("start", [""])[0]
+        query = f"?start={start}" if start.isdecimal() else ""
+        return f"https://www.youtube-nocookie.com/embed/{match.group(1)}{query}"
+    if url.hostname == "player.vimeo.com":
+        match = _VIMEO_RE.fullmatch(url.path)
+        return f"https://player.vimeo.com/video/{match.group(1)}" if match else None
+    return None
+
+
+def _authored_attribute(tag: str, name: str, value: str, base_url: str = "") -> str | None:
+    """Decide what happens to one attribute of typed HTML. None removes it."""
+    if name == "class":
+        allowed = AUTHORED_CLASSES.get(tag, ())
+        kept = [
+            item for item in value.split()
+            if item in allowed or (tag == "code" and _CODE_CLASS_RE.fullmatch(item))
+        ]
+        return " ".join(kept) or None
+    if name == "id":
+        if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
+            return value if _HEADING_ID_RE.fullmatch(value) else None
+        pattern = _FOOTNOTE_IDS.get(tag)
+        return value if pattern and pattern.fullmatch(value) else None
+    if name in ("width", "height"):
+        return value if _DIMENSION_RE.fullmatch(value) else None
+    if tag == "iframe" and name == "src":
+        return embed_url(value)
+    if base_url and name in ("href", "src", "poster") and not value.startswith("#"):
+        return urljoin(base_url, value)
+    return value
+
+
+def _clean_iframe(match: re.Match) -> str:
+    # Text inside <iframe> stays unescaped through the sanitizer, so never keep it. A frame
+    # whose address wasn't approved has nothing to show, so it goes too.
+    return f"<iframe{match.group(1)}></iframe>" if " src=" in match.group(1) else ""
+
+
+def sanitize_authored(html: str, *, base_url: str = "") -> str:
+    """Clean HTML a person typed, or Markdown output that has typed HTML mixed in."""
+    cleaned = nh3.clean(
+        html,
+        tags=AUTHORED_TAGS,
+        attributes=AUTHORED_ATTRIBUTES,
+        attribute_filter=lambda tag, name, value: _authored_attribute(tag, name, value, base_url),
+        set_tag_attribute_values=AUTHORED_FORCED_ATTRIBUTES,
+        url_schemes=URL_SCHEMES,
+        link_rel=None,
+        strip_comments=True,
+    )
+    return _IFRAME_RE.sub(_clean_iframe, cleaned)
 
 
 def render_markdown(text: str | None, *, base_url: str = "") -> Markup:
@@ -171,6 +326,29 @@ def render_markdown(text: str | None, *, base_url: str = "") -> Markup:
     return Markup(html)
 
 
+def render_source(
+    text: str | None, body_format: str | None = DEFAULT_BODY_FORMAT, *, base_url: str = ""
+) -> Markup:
+    """Sanitized HTML for a body written in any of ``BODY_FORMATS``."""
+    if (body_format or DEFAULT_BODY_FORMAT) == DEFAULT_BODY_FORMAT:
+        return render_markdown(text, base_url=base_url)
+    if body_format == "markdown_html":
+        md = _markdown("markdown_html")
+        env: dict = {}
+        html = md.renderer.render(md.parse(text or "", env), md.options, env)
+    else:
+        html = text or ""
+    html = sanitize_authored(_CELL_ALIGN_RE.sub(r'<\1 class="align-\2"', html), base_url=base_url)
+    if has_app_context() and "copydesk" in current_app.extensions:
+        html = current_app.extensions["copydesk"].hooks.apply_filters("markdown.html", html)
+    return Markup(html)
+
+
+def render_body(article: Any) -> Markup:
+    """An article's text as sanitized HTML, whichever format it was written in."""
+    return render_source(article.body, article.body_format, base_url=article.source_url or "")
+
+
 def render_inline(text: str | None) -> Markup:
     """Markdown for one line (no paragraphs), e.g. a short bio."""
     html = _markdown().renderInline(text or "")
@@ -181,19 +359,141 @@ def html_to_text(html: str) -> str:
     return re.sub(r"\s+", " ", unescape(nh3.clean(str(html), tags=set()))).strip()
 
 
-def excerpt(text: str | None, length: int = 220) -> str:
-    """The first paragraph of some Markdown as plain text, cut to ``length``."""
-    html = str(render_markdown(text))
+def _html_excerpt(html: str, length: int) -> str:
     for match in _PARAGRAPH_RE.finditer(html):
         plain = html_to_text(match.group(1))
         if plain:
             return truncate(plain, length)
-    return truncate(html_to_text(html), length)
+    return truncate(html_to_plain(html, links=False), length)
+
+
+def excerpt(text: str | None, length: int = 220) -> str:
+    """The first paragraph of some Markdown as plain text, cut to ``length``."""
+    return _html_excerpt(str(render_markdown(text)), length)
+
+
+def source_excerpt(text: str | None, body_format: str | None, length: int = 220) -> str:
+    return _html_excerpt(str(render_source(text, body_format)), length)
+
+
+def body_excerpt(article: Any, length: int = 220) -> str:
+    """The first paragraph of an article as plain text, whichever format it was written in."""
+    return source_excerpt(article.body, article.body_format, length)
+
+
+def source_word_count(text: str | None, body_format: str | None = DEFAULT_BODY_FORMAT) -> int:
+    """Count the words a reader sees, so tags in typed HTML don't count."""
+    if (body_format or DEFAULT_BODY_FORMAT) == DEFAULT_BODY_FORMAT:
+        return word_count(text or "")
+    return word_count(html_to_plain(str(render_source(text, body_format)), links=False))
+
+
+def body_text(article: Any) -> str:
+    """An article for the plain-text part of an email. Markdown already reads as plain text."""
+    if (article.body_format or DEFAULT_BODY_FORMAT) == DEFAULT_BODY_FORMAT:
+        return article.body
+    return html_to_plain(str(render_body(article)))
 
 
 def stats(text: str | None) -> dict[str, int]:
     words = word_count(text or "")
     return {"words": words, "minutes": max(1, round(words / 230)) if words else 0}
+
+
+class _PlainText(HTMLParser):
+    """Sanitized HTML as readable text, keeping paragraphs, list items and link addresses."""
+
+    BLOCKS = {
+        "aside", "blockquote", "caption", "dd", "details", "div", "dl", "dt", "figcaption", "figure",
+        "h1", "h2", "h3", "h4", "h5", "h6", "hr", "ol", "p", "pre", "section", "summary", "table",
+        "ul",
+    }
+    SILENT = {"audio", "iframe", "video"}
+
+    def __init__(self, links: bool) -> None:
+        super().__init__(convert_charrefs=True)
+        self.links = links
+        self.out: list[str] = []
+        self.href: list[str] = []
+        self.pre = 0
+        self.silent = 0
+
+    def _block(self) -> None:
+        if self.out and not self.out[-1].endswith("\n\n"):
+            self.out.append("\n\n")
+
+    def _media(self, attrs: dict[str, str | None]) -> None:
+        if self.links and attrs.get("src"):
+            self._block()
+            self.out.append(media_link(attrs["src"] or ""))
+            self._block()
+
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        if tag in self.SILENT:
+            self._media(values)
+            self.silent += 1
+        elif tag == "source" and self.silent:
+            self._media(values)
+        elif tag in self.BLOCKS:
+            self._block()
+            self.pre += tag == "pre"
+        elif tag == "br":
+            self.out.append("\n")
+        elif tag == "li":
+            if self.out and not self.out[-1].endswith("\n"):
+                self.out.append("\n")
+            self.out.append("- ")
+        elif tag in ("td", "th"):
+            self.out.append(" | " if self.out and not self.out[-1].endswith("\n") else "")
+        elif tag == "tr":
+            if self.out and not self.out[-1].endswith("\n"):
+                self.out.append("\n")
+        elif tag == "img":
+            self.out.append(values.get("alt") or "")
+        elif tag == "a":
+            self.href.append(values.get("href") or "")
+
+    def handle_endtag(self, tag):
+        if tag in self.SILENT:
+            self.silent = max(0, self.silent - 1)
+        elif tag in self.BLOCKS:
+            self.pre -= tag == "pre"
+            self._block()
+        elif tag == "a" and self.href:
+            href = self.href.pop()
+            if self.links and href and not href.startswith("#"):
+                self.out.append(f" ({href})")
+
+    def handle_data(self, data):
+        if self.silent:
+            return
+        text = data if self.pre else re.sub(r"\s+", " ", data)
+        if not self.pre and text.strip() == "" and (not self.out or self.out[-1].endswith("\n")):
+            return
+        self.out.append(text)
+
+
+def media_link(src: str) -> str:
+    """A link readers can open from a message that can't play video."""
+    url = urlsplit(src)
+    if url.hostname == "www.youtube-nocookie.com":
+        match = _YOUTUBE_RE.fullmatch(url.path)
+        if match:
+            return f"https://www.youtube.com/watch?v={match.group(1)}"
+    if url.hostname == "player.vimeo.com":
+        match = _VIMEO_RE.fullmatch(url.path)
+        if match:
+            return f"https://vimeo.com/{match.group(1)}"
+    return src
+
+
+def html_to_plain(html: str, *, links: bool = True) -> str:
+    """Sanitized HTML as plain text, with a blank line between blocks."""
+    parser = _PlainText(links)
+    parser.feed(str(html))
+    parser.close()
+    return "".join(parser.out).strip()
 
 
 # --------------------------------------------------------------------------- email
@@ -202,7 +502,10 @@ def stats(text: str | None) -> dict[str, int]:
 class _EmailStyler(HTMLParser):
     """Rewrites sanitized HTML with inline styles, because many email apps ignore <style>."""
 
-    VOID = {"br", "hr", "img", "input"}
+    VOID = {"br", "hr", "img", "input", "source", "track", "wbr"}
+    # Most email apps can't play media or fold a section, so readers get a link or the open text.
+    MEDIA = {"audio": "Listen", "iframe": "Watch the video", "video": "Watch the video"}
+    RENAMED = {"details": "div", "summary": "p"}
 
     def __init__(self, styles: dict[str, str], token_styles: dict[str, str], origin: str) -> None:
         super().__init__(convert_charrefs=True)
@@ -211,18 +514,38 @@ class _EmailStyler(HTMLParser):
         self.origin = origin.rstrip("/")
         self.out: list[str] = []
         self.stack: list[str] = []
+        self.media: dict[str, str] | None = None
 
     def handle_starttag(self, tag, attrs):
-        self.out.append(self._open(tag, dict(attrs)))
+        values = dict(attrs)
+        if tag in self.MEDIA and self.media is None:
+            self.media = {"tag": tag, "src": values.get("src") or ""}
+            return
+        if self.media is not None:
+            if tag == "source" and not self.media["src"]:
+                self.media["src"] = values.get("src") or ""
+            return
+        if tag == "track":
+            return
+        name = self.RENAMED.get(tag, tag)
+        self.out.append(self._open(name, values, style_as=tag))
         if tag not in self.VOID:
-            self.stack.append(tag)
+            self.stack.append(name)
 
     def handle_startendtag(self, tag, attrs):
-        self.out.append(self._open(tag, dict(attrs)))
+        if self.media is None:
+            self.out.append(self._open(tag, dict(attrs)))
 
     def handle_endtag(self, tag):
+        if self.media is not None:
+            if tag == self.media["tag"]:
+                media, self.media = self.media, None
+                if media["src"]:
+                    self.out.append(self._media_link(tag, media["src"]))
+            return
         if tag in self.VOID:
             return
+        tag = self.RENAMED.get(tag, tag)
         if tag in self.stack:
             while self.stack:
                 if self.stack.pop() == tag:
@@ -230,11 +553,16 @@ class _EmailStyler(HTMLParser):
         self.out.append(f"</{tag}>")
 
     def handle_data(self, data):
-        self.out.append(escape(data, quote=False))
+        if self.media is None:
+            self.out.append(escape(data, quote=False))
 
-    def _open(self, tag: str, attrs: dict[str, str | None]) -> str:
+    def _media_link(self, tag: str, src: str) -> str:
+        link = self._open("a", {"href": media_link(src)})
+        return f'{self._open("p", {})}{link}{self.MEDIA[tag]}</a></p>'
+
+    def _open(self, tag: str, attrs: dict[str, str | None], style_as: str = "") -> str:
         classes = (attrs.pop("class", None) or "").split()
-        style = self.styles.get(tag, "")
+        style = self.styles.get(style_as or tag, "") or self.styles.get(tag, "")
         if tag == "code":
             style = self.styles["pre code"] if "pre" in self.stack else self.styles["code"]
         elif tag == "aside" and "callout" in classes:
@@ -283,6 +611,7 @@ def email_styles(accent: str) -> dict[str, str]:
         "th": "border:1px solid #d6dae1;padding:6px 8px;text-align:left;background:#f4f5f7;",
         "td": "border:1px solid #d6dae1;padding:6px 8px;",
         "hr": "border:0;border-top:1px solid #e3e6eb;margin:24px 0;",
+        "summary": "margin:0 0 8px;font-size:16px;line-height:1.65;font-weight:700;",
         "callout note": "display:block;margin:0 0 16px;padding:12px 16px;background:#f2f5fb;border-left:4px solid #5b7bd5;",
         "callout tip": "display:block;margin:0 0 16px;padding:12px 16px;background:#eff8f2;border-left:4px solid #2f9e5c;",
         "callout warning": "display:block;margin:0 0 16px;padding:12px 16px;background:#fdf6ec;border-left:4px solid #d48a1c;",

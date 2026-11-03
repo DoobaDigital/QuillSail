@@ -39,3 +39,4 @@ CLAUDE.md
 .idea
 .vscode
 **/.venv
+node_modules/

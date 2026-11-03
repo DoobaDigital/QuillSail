@@ -70,7 +70,7 @@
     {% endif %}
     <details class="card section">
       <summary><strong>Read what you submitted</strong></summary>
-      <div class="prose section">{{ article.body|markdown }}</div>
+      <div class="prose section">{{ article|render_body }}</div>
     </details>
   </section>
 </div>
