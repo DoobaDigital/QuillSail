@@ -345,5 +345,46 @@
       "Docker",
       "native desktop builds"
     ]
+  },
+  "writing_formats_jekyll_import": {
+    "version": "1.16.0",
+    "date": "2026-11-03",
+    "issue": 20,
+    "pull_request": 43,
+    "application": {
+      "passed": 988,
+      "skipped": 3
+    },
+    "website": {
+      "passed": 183,
+      "skipped": 1
+    },
+    "node": {
+      "passed": 37
+    },
+    "browser_checks": {
+      "passed": 114,
+      "browser": "headless Chrome",
+      "site": "disposable local"
+    },
+    "migration": "0009",
+    "conversion_documents": {
+      "in_tests": 450,
+      "during_development": 2000,
+      "defects_fixed": 8
+    },
+    "ci_passed_on_pull_request": [
+      "PostgreSQL",
+      "MariaDB",
+      "Docker",
+      "package checks",
+      "native desktop builds"
+    ],
+    "firefox_checked": false,
+    "safari_checked": false,
+    "screen_reader_checked": false,
+    "real_phone_checked": false,
+    "live_word_or_google_docs_paste_checked": false,
+    "real_email_sent": false
   }
 }

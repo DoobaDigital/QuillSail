@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.16.0 — Beta
 
 - Add a visual editor (#20), so writers can format a piece without knowing Markdown. It covers headings, emphasis, links, lists, task lists, quotes, code with a language, tables, footnotes, boxes and images, with undo, keyboard shortcuts and sensible pasting. Pieces are still saved as Markdown. Opening and saving a piece changes nothing, only edited blocks are rewritten, and anything the editor can't show stays as editable source. Without JavaScript, the text area works as before.
 - Add an HTML writing mode. Pieces can use safe HTML, including collapsible sections, video, audio and YouTube or Vimeo embeds. Scripts, styles, forms and the site's own classes are always removed, and newsletters get links or open text where email apps can't cope. Switching to Markdown says what will change first.
