@@ -13,7 +13,7 @@ from copydesk import audit, newsletter
 from copydesk.db import db
 from copydesk.helpers import external_url, state
 from copydesk.models import Issue, IssuePreview, User
-from copydesk.text import email_html, render_markdown
+from copydesk.text import body_text, email_html, render_body
 from copydesk.utils import slugify, utcnow
 
 
@@ -63,8 +63,8 @@ def public_items(issue: Issue, accent: str, *, email: bool = False) -> list[news
              if item.article is None or item.article.visibility == "public"]
     for item in items:
         if item.article is not None and not item.article.is_published:
-            item.web_html = render_markdown(item.article.body)
+            item.web_html = render_body(item.article)
             item.html = email_html(item.web_html, accent, state().config.origin) if email else item.web_html
-            item.text = item.article.body
+            item.text = body_text(item.article)
             item.display = "full"
     return items

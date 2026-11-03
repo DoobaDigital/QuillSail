@@ -5,3 +5,5 @@
 *.gif binary
 *.webp binary
 *.woff2 binary
+src/copydesk/static/vendor/prosemirror/editor-kit.min.js linguist-vendored -diff
+scripts/editor_kit/package-lock.json linguist-generated -diff

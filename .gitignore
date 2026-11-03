@@ -38,3 +38,4 @@ htmlcov/
 CLAUDE.md
 .codex/
 .google/
+node_modules/

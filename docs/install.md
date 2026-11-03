@@ -50,4 +50,4 @@ After installation, register the server once for [one-command updates](server-up
 
 ## Moving between installations
 
-`quillsail export` saves every table as JSON, and `quillsail import` loads that file into an empty database. Use it to move between databases, for example from SQLite to PostgreSQL. [Backups and upgrades](maintenance.md) explains what to copy alongside the export, including uploads and the secret key.
+`quillsail export` saves every table as JSON, and `quillsail import` loads that file into an empty database. To bring in a blog from elsewhere instead, see [importing a blog](importing-a-blog.md). Use it to move between databases, for example from SQLite to PostgreSQL. [Backups and upgrades](maintenance.md) explains what to copy alongside the export, including uploads and the secret key.

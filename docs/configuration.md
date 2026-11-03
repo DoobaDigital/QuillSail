@@ -9,7 +9,7 @@ QuillSail reads the explicit `--config` path, then `COPYDESK_CONFIG`, then `./co
 | site | `base_url`, `secret_key`, `data_dir`, `debug` |
 | database | SQLAlchemy `url` |
 | mail | `backend`, `host`, `port`, `security`, `username`, `password`, `timeout`, `from_email`, `rate_per_minute`, `file_dir` |
-| uploads | `dir`, `max_size_mb` |
+| uploads | `dir`, `max_size_mb`, `max_import_mb` |
 | jobs | `run_in_web` (prefer a separate worker in production) |
 | server | `proxy_hops` |
 | extensions | `enabled`, optional `dir`, extension-specific option tables |

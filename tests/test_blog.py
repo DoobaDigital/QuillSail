@@ -211,7 +211,9 @@ def test_external_newsletter_link_uses_subpath_and_public_metadata_only(app, edi
         assert query["title"] == ["A blog post"] and len(query["excerpt"][0]) <= 400
         assert "email" not in query and "token" not in query
         transfer = json.loads(base64.urlsafe_b64decode(target.fragment.removeprefix("quillsail=")))
-        assert transfer == {"version": 1, "source": query["source"][0], "body": BODY}
+        assert transfer == {
+            "version": 1, "source": query["source"][0], "body": BODY, "body_format": "markdown",
+        }
         assert "body" not in query
         article.visibility = "members"
         db.session.commit()

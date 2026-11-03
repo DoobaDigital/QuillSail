@@ -340,7 +340,7 @@ def export():
             "subscribed_at": subscriber.created_at.isoformat(),
         },
         "articles": [
-            {"title": a.title, "subtitle": a.subtitle, "status": a.status, "body": a.body,
+            {"title": a.title, "subtitle": a.subtitle, "status": a.status, "body": a.body, "body_format": a.body_format,
              "source_url": a.source_url, "source_author": a.source_author,
              "newsletter_blurb": a.newsletter_blurb,
              "created_at": a.created_at.isoformat(),

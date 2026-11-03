@@ -11,6 +11,7 @@
     quillsail user ...        create users, reset passwords, manage groups
     quillsail subscribers ... import and export the subscriber list
     quillsail export / import back up or move all data as JSON
+    quillsail import-jekyll   bring in an existing Jekyll blog
     quillsail ext ...         commands added by extensions
 
 Run any command with --help for details.
@@ -794,6 +795,101 @@ def import_data(ctx: Context, source, yes):
                     ))
             db.session.commit()
     click.echo("Import complete. Copy the uploads folder across too.")
+
+
+@main.command("import-jekyll")
+@click.argument("source", type=click.Path(exists=True, path_type=Path))
+@click.option("--dry-run", is_flag=True, help="Report what would happen, and change nothing.")
+@click.option("--as-drafts", is_flag=True, help="Bring every post in as a draft instead of publishing it.")
+@click.option("--author", "author_name", help="Username or email of the account that owns the import. Default: the first administrator.")
+@click.option("--yes", is_flag=True, help="Don't ask for confirmation.")
+@pass_context
+def import_jekyll(ctx: Context, source, dry_run, as_drafts, author_name, yes):
+    """Bring in a Jekyll blog from its source folder or a zip of it.
+
+    Liquid and plugins are never run. Importing fires no webhooks and sends no email, and
+    it's safe to repeat: posts that were already imported are skipped. Old post addresses
+    redirect to the new ones, once this site answers on the old domain.
+    """
+    import tempfile
+
+    from sqlalchemy import select
+
+    from copydesk import jekyll_import, migrate
+    from copydesk.db import db
+    from copydesk.models import ADMINS, Group, GroupMembership, User
+
+    app = ctx.app()
+    with app.test_request_context(), tempfile.TemporaryDirectory() as temporary:
+        migrate.upgrade(db.engine)
+        folder = source
+        try:
+            if source.is_file():
+                folder = Path(temporary) / "site"
+                limit = app.extensions["copydesk"].config.max_import_mb * 1024 * 1024 * jekyll_import.MAX_ZIP_EXPANSION
+                jekyll_import.extract_zip(source, folder, max_unpacked=limit)
+            plan = jekyll_import.plan_import(folder)
+        except jekyll_import.ImportError_ as exc:
+            raise click.ClickException(str(exc)) from exc
+
+        counts = plan.counts()
+        click.echo(f"{plan.site_title or 'This site'}: {counts['posts']} posts found.")
+        click.echo(f"  {counts['published']} to publish, {counts['drafts']} as drafts, "
+                   f"{counts['already_imported']} already imported, {counts['images']} images to upload.")
+        for post in plan.posts:
+            state = "already imported" if post.already_imported else ("draft" if as_drafts else post.status)
+            click.echo(f"\n{post.title}  [{state}]")
+            click.echo(f"  {post.source} -> {post.new_path}")
+            for path in post.old_paths:
+                click.echo(f"  redirects from {path}")
+            for note in post.notes:
+                click.echo(f"  ! {note}")
+        for item in plan.skipped:
+            click.echo(f"\nSkipped {item['file']}: {item['reason']}")
+        if plan.new_sections:
+            click.echo(f"\nNew sections: {', '.join(plan.new_sections)}")
+        if plan.unmatched_authors:
+            click.echo(f"\nNo account found for: {', '.join(plan.unmatched_authors)}. "
+                       "Their posts will be credited to the account running the import.")
+        click.echo(f"\n{counts['needs_review']} posts need a look after importing (marked with !).")
+        if dry_run:
+            click.echo("This was a dry run. Nothing was changed.")
+            return
+        if not counts["new"]:
+            click.echo("There's nothing new to import.")
+            return
+
+        if author_name:
+            lowered = author_name.strip().lower()
+            actor = db.session.scalar(select(User).where(
+                (User.username == author_name) | (User.email == lowered), User.deleted_at.is_(None)
+            ))
+            if actor is None:
+                raise click.ClickException(f"There's no account called {author_name}.")
+        else:
+            actor = db.session.scalar(
+                select(User)
+                .join(GroupMembership, GroupMembership.user_id == User.id)
+                .join(Group, GroupMembership.group_id == Group.id)
+                .where(Group.slug == ADMINS, User.deleted_at.is_(None)).order_by(User.id).limit(1)
+            )
+            if actor is None:
+                raise click.ClickException("There's no administrator yet. Name an account with --author.")
+        if not yes:
+            click.confirm(f"Import {counts['new']} posts as {actor.display_name}?", abort=True)
+        result = jekyll_import.run_import(plan, actor, as_drafts=as_drafts)
+        from copydesk import audit
+
+        audit.record(
+            "article.imported_site", None, actor=db.session.get(User, actor.id), label=plan.site_title or "a Jekyll site",
+            details={"imported": len(result.imported), "skipped": result.skipped, "failed": len(result.failed)},
+        )
+        db.session.commit()
+    click.echo(f"Imported {len(result.imported)} posts and {result.images} images. Skipped {result.skipped}.")
+    for failure in result.failed:
+        click.echo(f"  Couldn't import {failure['file']}: {failure['reason']}", err=True)
+    if result.failed:
+        raise SystemExit(1)
 
 
 # --------------------------------------------------------------------------- extensions

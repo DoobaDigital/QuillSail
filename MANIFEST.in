@@ -6,6 +6,8 @@ recursive-include docs *.json
 recursive-include deploy *.service
 recursive-include deploy *.py *.sh *.example
 recursive-include scripts *.py *.sh
+recursive-include scripts/editor_kit *.json *.js *.mjs
+prune scripts/editor_kit/node_modules
 recursive-include assets *.svg *.png *.md
 recursive-include tests *.py *.cjs
 prune .validation

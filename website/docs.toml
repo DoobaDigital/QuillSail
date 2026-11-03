@@ -36,6 +36,7 @@ pages = [
   { title = "Set up your publication", file = "docs/publication-setup.md" },
   { title = "Groups and permissions", file = "docs/groups-and-permissions.md" },
   { title = "Writing and review", file = "docs/writing-and-review.md" },
+  { title = "Importing a blog", file = "docs/importing-a-blog.md" },
   { title = "Blog and newsletter modes", file = "docs/publication-modes.md" },
   { title = "Newsletter issues", file = "docs/newsletter-issues.md" },
   { title = "Subscribers and accounts", file = "docs/subscribers.md" },

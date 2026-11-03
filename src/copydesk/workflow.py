@@ -13,6 +13,7 @@ extensions as ``article.status_changed``.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -25,12 +26,14 @@ from copydesk.models import (
     Article,
     ArticleAuthor,
     ArticleEvent,
+    ArticleRedirect,
     ArticleRevision,
     Section,
     Tag,
     User,
 )
-from copydesk.utils import slugify, utcnow, word_count
+from copydesk.text import BODY_FORMATS, DEFAULT_BODY_FORMAT, source_word_count
+from copydesk.utils import slugify, utcnow
 
 
 @dataclass(frozen=True)
@@ -207,6 +210,10 @@ def unique_slug(title: str, exclude_id: int | None = None) -> str:
         number += 1
 
 
+def slug_exists(slug: str) -> bool:
+    return db.session.scalar(select(Article.id).where(Article.slug == slug)) is not None
+
+
 def create_draft(user: User, title: str = "") -> Article:
     article = Article(
         title=title.strip(),
@@ -230,13 +237,20 @@ def save(
     subtitle: str,
     body: str,
     summary: str = "",
+    body_format: str | None = None,
 ) -> ArticleRevision | None:
     """Update the text. A new revision is kept only if something changed."""
     title, subtitle = title.strip()[:200], subtitle.strip()[:300]
     body = body.replace("\r\n", "\n")
-    changed = (title, subtitle, body) != (article.title, article.subtitle, article.body)
+    body_format = body_format or article.body_format or DEFAULT_BODY_FORMAT
+    if body_format not in BODY_FORMATS:
+        raise WorkflowError("That isn't a format this piece can be written in.")
+    changed = (title, subtitle, body, body_format) != (
+        article.title, article.subtitle, article.body, article.body_format,
+    )
     article.title, article.subtitle, article.body = title, subtitle, body
-    article.word_count = word_count(body)
+    article.body_format = body_format
+    article.word_count = source_word_count(body, body_format)
     article.updated_at = utcnow()
     if article.status == "draft" and article.slug.startswith("draft-") and title:
         article.slug = unique_slug(title, exclude_id=article.id)
@@ -248,6 +262,7 @@ def save(
         title=title,
         subtitle=subtitle,
         body=body,
+        body_format=body_format,
         summary=summary.strip()[:255],
         word_count=article.word_count,
     )
@@ -313,7 +328,7 @@ def transition(article: Article, action: str, actor: Any, message: str = "") -> 
             raise WorkflowError("This section is not accepting submissions. Choose another section.")
         if not article.title.strip():
             raise WorkflowError("Give your piece a title before you submit it.")
-        if word_count(article.body) < 20:
+        if source_word_count(article.body, article.body_format) < 20:
             raise WorkflowError("There isn't much here yet. Write at least a few sentences before submitting.")
     if action == "publish" and not article.title.strip():
         raise WorkflowError("Add a title before publishing.")
@@ -368,6 +383,84 @@ def publish(article: Article, actor: Any) -> None:
     state().hooks.fire("article.status_changed", article=article, old=old, new="published", actor=actor, message="")
     state().hooks.fire("article.published", article=article)
     notify.status_changed(article, old, "published", actor)
+
+
+def import_article(
+    *,
+    actor: User,
+    authors: list[User],
+    title: str,
+    slug: str,
+    body: str,
+    body_format: str,
+    status: str,
+    published_at: datetime | None,
+    updated_at: datetime | None = None,
+    excerpt: str = "",
+    section_id: int | None = None,
+    cover_image: str = "",
+    cover_alt: str = "",
+    featured: bool = False,
+    tags: list[str] | tuple[str, ...] = (),
+    source: str = "",
+) -> Article:
+    """Create an article brought in from another blog, keeping its original date.
+
+    Unlike ``transition``, this fires no hooks and sends no email: these posts already
+    reached their readers, and announcing a whole archive would flood every webhook and
+    co-author. The timeline and the activity log still record it.
+    """
+    now = utcnow()
+    article = Article(
+        title=title.strip()[:200],
+        slug=slug if not slug_exists(slug) else unique_slug(slug),
+        body=body,
+        body_format=body_format,
+        excerpt=excerpt,
+        section_id=section_id,
+        cover_image=cover_image,
+        cover_alt=cover_alt,
+        featured=featured,
+        status=status,
+        word_count=source_word_count(body, body_format),
+        created_by_id=actor.id,
+        created_at=published_at or now,
+        updated_at=updated_at or published_at or now,
+        published_at=published_at,
+    )
+    for position, author in enumerate(authors):
+        article.author_links.append(ArticleAuthor(user_id=author.id, position=position))
+    db.session.add(article)
+    db.session.flush()
+    set_tags(article, list(tags))
+    db.session.add(ArticleRevision(
+        article_id=article.id, user_id=actor.id, title=article.title, subtitle="", body=body,
+        body_format=body_format, summary="Imported", word_count=article.word_count,
+        created_at=article.created_at,
+    ))
+    db.session.add(ArticleEvent(
+        article=article, user_id=actor.id, kind="status", from_status="draft", to_status=status,
+        body="Imported from another blog.", internal=False,
+    ))
+    audit.record("article.imported", article, actor=actor, details={"source": source})
+    return article
+
+
+def redirect_key(path: str) -> str:
+    """One form for an old address, however it was linked: with or without / or .html."""
+    key = "/" + (path or "").strip().lstrip("/")
+    key = key.split("?")[0].split("#")[0]
+    key = key.removesuffix("/index.html").removesuffix("/index.htm").removesuffix(".html").removesuffix(".htm")
+    return key.rstrip("/")
+
+
+def redirect_target(path: str) -> Article | None:
+    """The published article that used to live at ``path``, if any."""
+    key = redirect_key(path)
+    if not key or len(key) > 512:
+        return None
+    row = db.session.scalar(select(ArticleRedirect).where(ArticleRedirect.old_path == key))
+    return row.article if row is not None and row.article.is_published else None
 
 
 def comment(article: Article, actor: User, body: str, *, internal: bool = False) -> ArticleEvent:

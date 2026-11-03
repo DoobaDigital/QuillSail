@@ -1,0 +1,72 @@
+{% extends "layout/dashboard.html" %}
+
+{% block page_title %}Check this import{% endblock %}
+{% block eyebrow %}<p class="eyebrow"><a href="{{ url_for('dash.import_jekyll') }}">Import a blog</a></p>{% endblock %}
+{% block lead %}<p class="lead">Nothing has changed yet. Here's what importing {{ plan.site_title or "this site" }} will do.</p>{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="panel-header"><h2>Summary</h2></div>
+  <div class="panel-body stack">
+    <ul class="checklist">
+      <li>{{ icon("check-circle", cls="icon ok") }} <span><strong>{{ counts.published|number }}</strong> {{ "post" if counts.published == 1 else "posts" }} to publish, with their original dates</span></li>
+      <li>{{ icon("edit", cls="icon") }} <span><strong>{{ counts.drafts|number }}</strong> as {{ "a draft" if counts.drafts == 1 else "drafts" }}</span></li>
+      <li>{{ icon("image", cls="icon") }} <span><strong>{{ counts.images|number }}</strong> {{ "image" if counts.images == 1 else "images" }} to upload</span></li>
+      {% if counts.already_imported %}<li>{{ icon("info", cls="icon") }} <span><strong>{{ counts.already_imported|number }}</strong> already imported, so {{ "it" if counts.already_imported == 1 else "they" }} will be skipped</span></li>{% endif %}
+      {% if counts.needs_review %}<li>{{ icon("warning", cls="icon warn") }} <span><strong>{{ counts.needs_review|number }}</strong> {{ "needs" if counts.needs_review == 1 else "need" }} a look afterwards</span></li>{% endif %}
+      {% if counts.skipped %}<li>{{ icon("warning", cls="icon warn") }} <span><strong>{{ counts.skipped|number }}</strong> {{ "file" if counts.skipped == 1 else "files" }} can't be imported</span></li>{% endif %}
+    </ul>
+    {% if plan.new_sections %}<p>These sections will be created: {{ plan.new_sections|join(", ") }}.</p>{% endif %}
+    {% if plan.unmatched_authors %}<p>No account was found for {{ plan.unmatched_authors|join(", ") }}. Those posts will be credited to you. To credit someone else, create their account first and upload again.</p>{% endif %}
+    {% if counts.new %}
+    <form method="post" action="{{ url_for('dash.import_jekyll_start', token=token) }}" class="form">
+      {{ forms.csrf() }}
+      {{ forms.checkbox("as_drafts", "Bring everything in as drafts", help="You can then review and publish each post yourself.") }}
+      <div class="form-actions">
+        <button class="button button-primary" type="submit">{{ icon("upload") }} Import {{ counts.new|number }} {{ "post" if counts.new == 1 else "posts" }}</button>
+      </div>
+    </form>
+    {% else %}
+    <p>There's nothing new to import.</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('dash.import_jekyll_cancel', token=token) }}">
+      {{ forms.csrf() }}
+      <button class="button" type="submit">Cancel and remove this upload</button>
+    </form>
+  </div>
+</section>
+
+{% if plan.skipped %}
+<section class="panel">
+  <div class="panel-header"><h2>Files that can't be imported</h2></div>
+  <div class="panel-body">
+    <ul class="small">{% for item in plan.skipped %}<li><code>{{ item.file }}</code>: {{ item.reason }}</li>{% endfor %}</ul>
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-header"><h2>Posts</h2></div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Post</th><th scope="col">Will be</th><th scope="col">New address</th><th scope="col">Old addresses</th></tr></thead>
+      <tbody>
+        {% for post in plan.posts %}
+        <tr>
+          <td>
+            <strong>{{ post.title }}</strong>
+            <span class="sub">{{ post.published_at|date if post.published_at else "No date" }} · <code>{{ post.source }}</code></span>
+            {% if post.notes and not post.already_imported %}
+            <ul class="small error-list">{% for note in post.notes %}<li>{{ note }}</li>{% endfor %}</ul>
+            {% endif %}
+          </td>
+          <td>{{ "Already imported" if post.already_imported else ("Published" if post.status == "published" else "Draft") }}</td>
+          <td><code>{{ post.new_path }}</code></td>
+          <td>{% for path in post.old_paths %}<code>{{ path }}</code>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

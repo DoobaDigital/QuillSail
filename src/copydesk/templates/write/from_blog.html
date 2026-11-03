@@ -6,6 +6,7 @@
   <header class="page-intro"><h1>Offer a blog post to {{ site.name }}</h1><p class="lead">Submit your public article and a separate newsletter blurb. The editors can use the full article, your blurb, or their own summary, with a link and credit to the original.</p></header>
   {{ forms.error_summary(errors) }}
   <form method="post" class="form" data-warn-unsaved data-blog-transfer{% if request.method == 'GET' %} data-transfer-fill="true"{% endif %}>{{ forms.csrf() }}
+    <input type="hidden" name="body_format" value="{{ values.get('body_format', 'markdown') }}">
     <p data-transfer-status role="status">Review the article below. If it wasn't transferred, paste the text you want to submit.</p>
     {{ forms.input('source_url', 'Original public blog post URL', values.get('source_url', ''), type='url', required=True, errors=errors, attrs='maxlength="2048"') }}
     {{ forms.input('title', 'Article title', values.get('title', ''), required=True, errors=errors, attrs='maxlength="200"') }}

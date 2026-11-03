@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from sqlalchemy import func, select, update
 
-from copydesk import audit, newsletter, publication, settings, uploads, workflow
+from copydesk import audit, body_formats, newsletter, publication, settings, uploads, workflow
 from copydesk import permissions as perms
 from copydesk.auth import current_user, login_required, verified_required
 from copydesk.db import db
@@ -21,8 +31,9 @@ from copydesk.models import (
     User,
 )
 from copydesk.security import too_many
-from copydesk.text import diff, render_markdown
-from copydesk.utils import parse_int, parse_lines, word_count
+from copydesk.text import BODY_FORMATS, diff, render_source, source_word_count
+from copydesk.utils import parse_int, parse_lines
+from copydesk.visual_document import markdown_to_document
 
 bp = Blueprint("write", __name__, url_prefix="/write")
 
@@ -125,6 +136,7 @@ def _from_blog():
         source = str(values.get("source_url") or "").strip()
         title = str(values.get("title") or "").strip()
         body = str(values.get("body") or "").replace("\r\n", "\n")
+        body_format = str(values.get("body_format") or "markdown")
         author = str(values.get("source_author") or "").strip()
         blurb = str(values.get("newsletter_blurb") or "").strip()
         if not publication.valid_web_url(source):
@@ -135,7 +147,9 @@ def _from_blog():
             errors["title"] = "Use a title between 1 and 200 characters."
         if not 1 <= len(author) <= 200:
             errors["source_author"] = "Add an author credit of up to 200 characters."
-        if word_count(body) < 20 or len(body) > MAX_BODY:
+        if body_format not in BODY_FORMATS:
+            body_format = "markdown"
+        if source_word_count(body, body_format) < 20 or len(body) > MAX_BODY:
             errors["body"] = "Share at least 20 words, up to 200,000 characters."
         if len(blurb) > publication.MAX_NEWSLETTER_BLURB:
             errors["newsletter_blurb"] = "Keep the newsletter blurb under 5,000 characters."
@@ -167,7 +181,9 @@ def _from_blog():
                 )
                 return redirect(url_for("write.status", article_id=existing.id))
             article = workflow.create_draft(current_user, title)
-            workflow.save(article, current_user, title=title, subtitle="", body=body)
+            workflow.save(
+                article, current_user, title=title, subtitle="", body=body, body_format=body_format
+            )
             article.source_url, article.source_author = source, author
             article.newsletter_blurb = blurb
             workflow.set_section(article, parse_int(values.get("section_id")))
@@ -304,6 +320,7 @@ def edit(article_id: int):
         title = (form.get("title") or "").strip()
         subtitle = (form.get("subtitle") or "").strip()
         body = (form.get("body") or "").replace("\r\n", "\n")
+        body_format = form.get("body_format") or article.body_format
         section_id = parse_int(form.get("section_id"))
         submitting = action in ("submit", "resubmit")
         if len(title) > 200:
@@ -312,6 +329,8 @@ def edit(article_id: int):
             errors["subtitle"] = "Keep the subtitle under 300 characters."
         if len(body) > MAX_BODY:
             errors["body"] = "This piece is too long to save. Split it into parts."
+        if body_format not in BODY_FORMATS:
+            errors["body_format"] = "Choose Markdown or HTML."
         if article.source_url and not is_editor and len(form.get("newsletter_blurb", "")) > publication.MAX_NEWSLETTER_BLURB:
             errors["newsletter_blurb"] = "Keep the newsletter blurb under 5,000 characters."
         if submitting and settings.get("submissions.require_section") and not section_id:
@@ -334,7 +353,7 @@ def edit(article_id: int):
                 errors["cover"] = str(exc)
 
         if action == "preview" and not errors:
-            preview_html = render_markdown(body)
+            preview_html = render_source(body, body_format)
         elif not errors:
             workflow.save(
                 article,
@@ -343,6 +362,7 @@ def edit(article_id: int):
                 subtitle=subtitle,
                 body=body,
                 summary=form.get("summary", ""),
+                body_format=body_format,
             )
             workflow.set_section(article, section_id)
             workflow.set_tags(article, parse_lines(form.get("tags")))
@@ -389,6 +409,7 @@ def edit(article_id: int):
         "title": form.get("title", article.title),
         "subtitle": form.get("subtitle", article.subtitle),
         "body": form.get("body", article.body),
+        "body_format": form.get("body_format", article.body_format),
         "section_id": form.get("section_id", article.section_id or ""),
         "tags": form.get("tags", ", ".join(t.name for t in article.tags)),
         "coauthors": form.get("coauthors", ", ".join(u.username for u in article.authors[1:])),
@@ -405,6 +426,12 @@ def edit(article_id: int):
         guidelines=guidelines_page(),
         max_words=settings.get("submissions.max_words") or 0,
         is_editor=is_editor,
+        body_formats=BODY_FORMATS,
+        # Markdown with HTML comes from imports, so it's offered only to pieces already using it.
+        body_format_choices=[
+            (key, label) for key, label in BODY_FORMATS.items()
+            if key != "markdown_html" or values["body_format"] == key
+        ],
         can_publish_post=publication.is_blog()
         and article.has_author(current_user)
         and perms.has(current_user, "publish")
@@ -525,6 +552,7 @@ def revision(article_id: int, revision_id: int):
         title_diff=diff(old.title, current.title),
         subtitle_diff=diff(old.subtitle, current.subtitle),
         body_diff=diff(old.body, current.body),
+        body_formats=BODY_FORMATS,
         can_edit=workflow.can_edit(current_user, article),
         is_latest=index == 0,
     )
@@ -545,6 +573,7 @@ def restore(article_id: int, revision_id: int):
         title=revision_row.title,
         subtitle=revision_row.subtitle,
         body=revision_row.body,
+        body_format=revision_row.body_format,
         summary=f"Restored the version from {revision_row.created_at:%Y-%m-%d %H:%M} UTC",
     )
     db.session.commit()
@@ -562,7 +591,59 @@ def preview():
     if not isinstance(data.get("body", ""), str):
         abort(400, description="The article body must be text.")
     body = data.get("body", "")[:MAX_BODY]
-    return jsonify(html=str(render_markdown(body)), words=word_count(body))
+    body_format = data.get("body_format", "markdown")
+    if body_format not in BODY_FORMATS:
+        abort(400, description="Choose Markdown or HTML.")
+    return jsonify(
+        html=str(render_source(body, body_format)), words=source_word_count(body, body_format)
+    )
+
+
+def _posted_body(data: dict) -> str:
+    """The text to work on. A piece over the limit is refused, never cut short."""
+    body = data.get("body", "")
+    if not isinstance(body, str):
+        abort(400, description="The article body must be text.")
+    if len(body) > MAX_BODY:
+        abort(413, description="This piece is too long to work with here. Split it into parts.")
+    return body
+
+
+@bp.post("/visual")
+@verified_required
+def visual():
+    """Read Markdown for the visual editor, with the same parser that renders it."""
+    return jsonify(markdown_to_document(_posted_body(json_object())))
+
+
+@bp.post("/convert")
+@verified_required
+def convert():
+    """Rewrite a body in another format. Nothing is saved until the writer saves."""
+    data = json_object()
+    source, target = data.get("source"), data.get("target")
+    if source not in BODY_FORMATS or target not in BODY_FORMATS:
+        abort(400, description="Choose Markdown or HTML.")
+    result = body_formats.convert(_posted_body(data), source, target)
+    return jsonify(body=result.body, warnings=result.warnings)
+
+
+@bp.get("/<int:article_id>/download")
+@login_required
+def download(article_id: int):
+    """The saved body as a file: .md for Markdown, .html for HTML."""
+    article = get_or_404(Article, article_id)
+    if not (workflow.can_see_submission(current_user, article) or workflow.can_edit(current_user, article)):
+        abort(404)
+    is_html = article.body_format == "html"
+    response = Response(
+        article.body,
+        mimetype="text/html" if is_html else "text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{article.slug}.{"html" if is_html else "md"}"'},
+    )
+    # The file is the writer's own source, so it must never run on this site if it's opened here.
+    response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'"
+    return response
 
 
 @bp.post("/upload")

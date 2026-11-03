@@ -55,6 +55,7 @@ register("manage_pages", "Manage pages and sections", "Edit pages such as About,
 register("manage_competitions", "Host competitions", "Create competitions, moderate entries, appoint judges and publish results.", "Competitions")
 register("manage_business", "Manage business outreach", "Read private business inquiries, record follow-up, and approve opportunities for editorial use.", "People")
 register("manage_settings", "Change site settings", "Change the publication's name, look, email and sign-up settings.", "Site")
+register("import_content", "Import a blog", "Import posts, images and old addresses from another blog. Imported posts go live without review.", "Site")
 register("view_log", "See the activity log", "See who did what on the site, and when.", "Site")
 
 

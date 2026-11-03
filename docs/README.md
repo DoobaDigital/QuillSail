@@ -17,6 +17,7 @@ These guides cover everything from trying QuillSail on your own computer to runn
 | Install the desktop app with one command | [Terminal installer](install-script.md) |
 | Put my publication online for readers | [Server installation](installation.md) |
 | Let readers submit writing and review it | [Writing and review](writing-and-review.md) |
+| Bring over an existing Jekyll blog | [Importing a blog](importing-a-blog.md) |
 | Send different content to students and alumni | [Newsletter issues](newsletter-issues.md) |
 | Decide who can do what | [Groups and permissions](groups-and-permissions.md) |
 | Send email through Gmail, Outlook or SMTP | [Gmail, Outlook and SMTP](email-connectors.md) |

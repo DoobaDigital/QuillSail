@@ -9,10 +9,19 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, g, has_request_context, jsonify, render_template, request
+from flask import (
+    Flask,
+    g,
+    has_request_context,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from markupsafe import Markup
 from sqlalchemy import select
-from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.exc import OperationalError, ProgrammingError, SQLAlchemyError
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -57,6 +66,8 @@ class CopydeskState:
     dashboard_links: list[Any] = field(default_factory=list)
     extensions: dict[str, Extension] = field(default_factory=dict)
     markdown: Any = None
+    markdown_html: Any = None
+    markdown_source: Any = None
     setup_needed: bool | None = None
 
     def theme_chain(self) -> list[themes.Theme]:
@@ -165,7 +176,12 @@ def refresh_theme(app: Flask) -> None:
 
 
 def _register_blueprints(app: Flask) -> None:
-    from copydesk import cloudflare, domains, edge  # noqa: F401 — registers background DNS checks
+    from copydesk import (  # noqa: F401 — registers background DNS checks
+        cloudflare,
+        domains,
+        edge,
+        jekyll_import,  # noqa: F401 — registers the background import
+    )
     from copydesk.views import account, api, business, competitions, public, setup, subscribe, write
     from copydesk.views import auth as auth_views
     from copydesk.views.dashboard import bp as dashboard_bp
@@ -206,10 +222,11 @@ def _register_request_hooks(app: Flask, state: CopydeskState) -> None:
             return render_template("errors/not_installed.html"), 503
         refresh_theme(app)
         auth.load_user()
+        if endpoint == "dash.import_jekyll":
+            # Set before the CSRF check reads the form. Only this page takes a whole site at once.
+            request.max_content_length = state.config.max_import_mb * 1024 * 1024
         security.check_csrf()
         if state.setup_needed and not endpoint.startswith("setup.") and endpoint not in SETUP_EXEMPT:
-            from flask import redirect, url_for
-
             return redirect(url_for("setup.index"))
         from copydesk import launch
 
@@ -218,6 +235,18 @@ def _register_request_hooks(app: Flask, state: CopydeskState) -> None:
     @app.after_request
     def _after(response):
         return security.apply_headers(response)
+
+
+def _moved_article(path: str) -> str | None:
+    """Where an imported post's old address now lives. Checked only after a 404."""
+    if path.startswith(("/api/", "/dashboard/", "/static/", "/uploads/", "/write/")):
+        return None
+    try:
+        article = workflow.redirect_target(path)
+    except SQLAlchemyError:
+        db.session.rollback()
+        return None
+    return url_for("public.article", slug=article.slug) if article else None
 
 
 def _register_error_handlers(app: Flask) -> None:
@@ -234,7 +263,12 @@ def _register_error_handlers(app: Flask) -> None:
     @app.errorhandler(HTTPException)
     def _http_error(exc: HTTPException):
         code = exc.code or 500
-        if request.path.startswith("/api/"):
+        if code == 404 and request.method in ("GET", "HEAD"):
+            moved = _moved_article(request.path)
+            if moved:
+                query = request.query_string.decode("utf-8", "replace")
+                return redirect(moved + (f"?{query}" if query else ""), 301)
+        if request.path.startswith("/api/") or request.headers.get("X-Requested-With") == "fetch":
             return jsonify(error=exc.name, message=exc.description), code
         title, message = messages.get(code, (exc.name, exc.description or ""))
         if code == 400 and exc.description == "csrf":
@@ -318,6 +352,8 @@ def _register_template_helpers(app: Flask, state: CopydeskState) -> None:
         markdown=text.render_markdown,
         inline_markdown=text.render_inline,
         excerpt=text.excerpt,
+        render_body=text.render_body,
+        body_excerpt=text.body_excerpt,
         date=_format_date,
         time=_format_time,
         datetime=_format_datetime,

@@ -91,6 +91,26 @@ quillsail import [OPTIONS] SOURCE
 | `SOURCE` | Required. |
 | `--yes` | Don't ask for confirmation. |
 
+## `quillsail import-jekyll`
+
+Bring in a Jekyll blog from its source folder or a zip of it.
+
+Liquid and plugins are never run. Importing fires no webhooks and sends no email, and
+it's safe to repeat: posts that were already imported are skipped. Old post addresses
+redirect to the new ones, once this site answers on the old domain.
+
+```text
+quillsail import-jekyll [OPTIONS] SOURCE
+```
+
+| Argument or option | What it does |
+| --- | --- |
+| `SOURCE` | Required. |
+| `--dry-run` | Report what would happen, and change nothing. |
+| `--as-drafts` | Bring every post in as a draft instead of publishing it. |
+| `--author TEXT` | Username or email of the account that owns the import. Default: the first administrator. |
+| `--yes` | Don't ask for confirmation. |
+
 ## `quillsail init`
 
 Set up a new site: write copydesk.toml, create the database and the first administrator.

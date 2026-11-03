@@ -18,6 +18,12 @@ Choose body and heading typefaces, custom font stacks, light and dark colors, wi
 
 Use **Preview changes** to view a private sample, switch between website, dashboard and email, and compare desktop and mobile. The dashboard preview uses sample counts and disabled controls, in the saved dashboard design. Previewing does not persist settings or uploaded images, publish content, queue jobs, or send email. Without JavaScript, load a style and use the preview buttons manually. Save applies the design to public pages and future emails, and to the dashboard while it matches the publication; it cannot restyle messages already delivered.
 
+## Showing article text in a template
+
+An article's body can be Markdown or HTML, so a template that overrides an article page should use `{{ article|render_body }}` rather than `{{ article.body|markdown }}`, and `{{ article|body_excerpt(160) }}` rather than `{{ article.body|excerpt(160) }}`. The older forms still work for Markdown, but they show an HTML article's tags as text.
+
+The new elements a piece can use are `details`, `summary`, `video`, `audio` and `iframe` inside `.prose`. The bundled stylesheet covers them, and themes can restyle them.
+
 ## Dashboard design
 
 Open **Settings → Appearance → Dashboard** to design the dashboard the same way as the publication, with a private preview at desktop and mobile sizes. Under **Dashboard design**, choose:

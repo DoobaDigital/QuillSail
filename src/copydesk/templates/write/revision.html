@@ -36,6 +36,10 @@
     {% endif %}
   </header>
 
+  {% if previous and previous.body_format != revision.body_format %}
+  <div class="flashes">{{ ui.alert("info", "This version changed the format from " ~ body_formats.get(previous.body_format, previous.body_format) ~ " to " ~ body_formats.get(revision.body_format, revision.body_format) ~ ".") }}</div>
+  {% endif %}
+
   {% set changed = namespace(any=false) %}
   {% for rows in (title_diff, subtitle_diff) %}{% for row in rows %}{% if row.kind in ("add", "del") %}{% set changed.any = true %}{% endif %}{% endfor %}{% endfor %}
   {% if changed.any %}

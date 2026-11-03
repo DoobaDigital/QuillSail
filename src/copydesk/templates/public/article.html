@@ -68,7 +68,7 @@
     {{ slot("article_before_body", article=article) }}
     {% if article.source_url %}<p class="blog-source">Originally published{% if article.source_author %} by {{ article.source_author }}{% endif %}. <a href="{{ article.source_url }}" target="_blank" rel="noopener noreferrer ugc">Read the original blog post {{ icon('external') }}</a></p>{% endif %}
     <div class="prose">
-      {{ article.body|markdown(base_url=article.source_url) }}
+      {{ article|render_body }}
     </div>
     {{ slot("article_after_body", article=article) }}
     {% endif %}

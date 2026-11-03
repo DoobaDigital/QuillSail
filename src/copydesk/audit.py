@@ -31,6 +31,8 @@ ACTIONS: dict[str, str] = {
     "article.edited": "edited",
     "article.assigned": "assigned an editor to",
     "article.deleted": "deleted",
+    "article.imported": "imported",
+    "article.imported_site": "imported a blog:",
     "article.settings": "changed the publishing settings of",
     "issue.created": "created",
     "issue.updated": "edited",

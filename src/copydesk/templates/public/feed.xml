@@ -17,7 +17,7 @@
     {% for name in entry.authors %}<author><name>{{ name }}</name></author>{% endfor %}
     {% if entry.category %}<category term="{{ entry.category }}"/>{% endif %}
     {% if entry.summary %}<summary>{{ entry.summary }}</summary>{% endif %}
-    <content type="html">{{ entry.content|markdown|forceescape }}</content>
+    <content type="html">{{ entry.content_html|forceescape }}</content>
   </entry>
   {% endfor %}
 </feed>

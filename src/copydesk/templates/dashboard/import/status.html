@@ -1,0 +1,37 @@
+{% extends "layout/dashboard.html" %}
+
+{% block meta %}{{ super() }}{% if running %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+{% block page_title %}{{ "Import finished" if status.state == "done" else ("Import failed" if status.state == "failed" else "Importing") }}{% endblock %}
+{% block eyebrow %}<p class="eyebrow"><a href="{{ url_for('dash.import_jekyll') }}">Import a blog</a></p>{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="panel-body stack" role="status">
+    {% if status.state == "done" %}
+    {% set result = status.result %}
+    <ul class="checklist">
+      <li>{{ icon("check-circle", cls="icon ok") }} <span><strong>{{ result.imported|length|number }}</strong> posts imported, with <strong>{{ result.images|number }}</strong> images</span></li>
+      {% if result.skipped %}<li>{{ icon("info", cls="icon") }} <span><strong>{{ result.skipped|number }}</strong> were already imported, so they were skipped</span></li>{% endif %}
+      {% if result.failed %}<li>{{ icon("warning", cls="icon warn") }} <span><strong>{{ result.failed|length|number }}</strong> couldn't be imported</span></li>{% endif %}
+    </ul>
+    {% if result.failed %}
+    <ul class="small">{% for item in result.failed %}<li><code>{{ item.file }}</code>: {{ item.reason }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if status.posts %}
+    <h2 class="card-title">Posts to check</h2>
+    <ul class="small">
+      {% for post in status.posts %}<li><strong>{{ post.title }}</strong><ul>{% for note in post.notes %}<li>{{ note }}</li>{% endfor %}</ul></li>{% endfor %}
+    </ul>
+    {% endif %}
+    <p><a class="button button-primary" href="{{ url_for('dash.articles', tab='published') }}">See your articles</a></p>
+    {% elif status.state == "failed" %}
+    {{ ui.alert("error", status.error or "The import stopped. Nothing else was changed.") }}
+    {% elif running %}
+    <p>{% if status.total %}Imported {{ status.imported or 0 }} of {{ status.total }} posts so far.{% else %}Your import is waiting to start.{% endif %} This page updates by itself, and the import keeps running if you leave.</p>
+    {% else %}
+    <p>This import isn't running. If it doesn't finish soon, check that the background worker is running under System status, then upload the site again. Posts already imported are skipped.</p>
+    <p><a class="button" href="{{ url_for('dash.system') }}">System status</a></p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
