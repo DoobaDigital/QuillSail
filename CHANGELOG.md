@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.18.0 — Beta
 
 - Make competitions opt-in for Blog and Blog + newsletter in General settings, preserving existing competitions when disabled.
 - Hide unavailable account, writing and competition links on desktop public websites. Keep local sign-in and desktop access controls, and fix public tag pages, issue feeds and favicons.
