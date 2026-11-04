@@ -420,6 +420,15 @@
     "code_review": {
       "problems_found": 10,
       "fixed_before_merge": 10
-    }
+    },
+    "installed_on_linux_server": {
+      "terminal_installer": true,
+      "desktop_session": false,
+      "background_publication": true,
+      "setup_form_from_new_link": true,
+      "clean_stop_on_sighup": true,
+      "real_publication_data_changed": false
+    },
+    "browser_over_ssh_tunnel_checked": false
   }
 }
