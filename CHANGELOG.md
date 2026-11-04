@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.17.0 — Beta
 
 - Make the terminal a full alternative to the desktop window. The `quillsail` command from the terminal installer now runs the same commands as the Python package, with or without a desktop.
 - Add `quillsail instance`, which starts a publication the way opening the app does: your first one, created the first time, with a link to its setup form or dashboard. `--name` starts or creates a named one, and `--data-dir`, `--port`, `--background`, `--no-browser` and `--no-worker` adjust how it runs. If it's already running, you get a new link instead of a second copy.

@@ -633,4 +633,4 @@ quillsail worker [OPTIONS]
 
 ---
 
-*Generated from the QuillSail 1.16.0 source code by `scripts/build_reference_docs.py`.*
+*Generated from the QuillSail 1.17.0 source code by `scripts/build_reference_docs.py`.*
