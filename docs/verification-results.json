@@ -421,5 +421,54 @@
       "problems_found": 10,
       "fixed_before_merge": 10
     }
+  },
+  "blog_experience": {
+    "version": "1.18.0",
+    "date": "2026-11-04",
+    "issue": 48,
+    "pull_request": 49,
+    "application": {
+      "passed": 1047,
+      "skipped": 3
+    },
+    "website": {
+      "passed": 184,
+      "skipped": 1
+    },
+    "schema_change": false,
+    "ci_passed_on_feature_pull_request": [
+      "Python 3.11–3.14",
+      "PostgreSQL",
+      "MariaDB",
+      "Docker",
+      "package checks",
+      "offline Worker",
+      "website on Ubuntu and macOS",
+      "all four native desktop builds"
+    ],
+    "browser": [
+      "desktop Chrome with a disposable local publication",
+      "390px publication and dashboard layouts",
+      "mobile menus, keyboard focus and wrapping post navigation",
+      "local owner sign-in and published-post navigation"
+    ],
+    "regressions": [
+      "competition opt-in and disabled route/mutation guards",
+      "desktop public listener navigation, tags, feeds and favicon",
+      "closed registration, CSRF and publication mode behavior",
+      "own private draft count and restricted post access",
+      "public section discovery and equal-date adjacent post navigation",
+      "paginated homepage metadata and appearance previews"
+    ],
+    "apple_silicon_ci_retry": "Passed after restarting a stalled runner",
+    "real_phone_checked": false,
+    "screen_reader_checked": false,
+    "real_email_sent": false,
+    "live_publication_changed": false,
+    "not_run_locally": [
+      "server databases",
+      "Docker",
+      "native desktop builds"
+    ]
   }
 }

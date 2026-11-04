@@ -2,6 +2,18 @@
 
 QuillSail is beta software. These are development checks, not an independent security audit. Private deployment addresses, access details and operations records are excluded from the public repository.
 
+## 1.18.0 Beta — blog navigation and optional competitions (#48, #49)
+
+Blog and Blog + newsletter publications now enable competitions explicitly in General settings. Disabling the feature preserves competition data and blocks public and dashboard competition routes. The desktop public listener keeps account access, writing and competition management local; its navigation no longer advertises those unavailable actions. Public tags, issue feeds and favicons work on that listener.
+
+Regression coverage checks publication modes, competition opt-in and disabled mutations, CSRF, closed-registration prompts, the actual desktop public listener and its reader links, private draft counts, restricted content, section discovery, equal-date post navigation, paginated metadata and appearance previews. The blog dashboard puts published posts and the owner's drafts first, and existing contributions needing review remain visible when submissions close.
+
+Application tests: 1,047 passed, 3 skipped. Website tests: 184 passed, 1 skipped. Ruff, generated references and public-file checks passed. The feature pull request passed Python 3.11–3.14, PostgreSQL, MariaDB, package, container, offline Worker, website and all four native desktop checks. Its Apple Silicon builder passed after a stalled runner was restarted.
+
+Desktop Chrome checks used a disposable local publication at desktop and 390px widths. They covered reading, mobile menus, keyboard focus, wrapping post navigation, local owner sign-in, dashboard navigation and the published-post tab. No live publication was changed and no real email was sent. Real phones and screen readers were not checked. PostgreSQL, MariaDB, Docker and packaged desktop checks ran in CI rather than locally.
+
+The release preparation changes the version, changelog, verification record and generated references. Native release builds additionally require Apple signing and notarization, installer/update lifecycle checks, matching server packages and the signed Beta update feed before the release is complete.
+
 ## 1.17.0 Beta — the terminal as a full alternative to the desktop window (#46)
 
 The `quillsail` command from the terminal installer now runs the same commands as the Python package. On its own it prints help, `quillsail desktop` opens the window, and `quillsail instance` starts a publication the way opening the app does. Each part of the window has a matching command. The change began with a real report: on a Linux server with no desktop, `quillsail instance list` printed nothing, because the installer's command sent it to the desktop app in the background and discarded the output.
