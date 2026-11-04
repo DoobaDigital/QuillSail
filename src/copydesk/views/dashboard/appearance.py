@@ -230,7 +230,7 @@ def appearance_preview():
             template = "public/blog_home.html" if publication.is_blog() else "public/home.html"
             html = render_template(env.get_template(template), latest_issue=None, featured=None, recent=[],
                                    subscriber_count=0, groups=signup_groups() if settings.get("newsletter.ask_audience") else [],
-                                   page=SimpleNamespace(items=[]), active_nav="home")
+                                   page=SimpleNamespace(items=[], page=1), sections=[], active_nav="home")
         elif kind == "email":
             g.csp_override = "default-src 'none'; img-src 'self' https: data:; style-src 'unsafe-inline'; frame-ancestors 'self'; base-uri 'none'"
             template = env.get_template("email/issue.html")
