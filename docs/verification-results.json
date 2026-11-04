@@ -386,5 +386,36 @@
     "real_phone_checked": false,
     "live_word_or_google_docs_paste_checked": false,
     "real_email_sent": false
+  },
+  "terminal_instances": {
+    "version": "1.17.0",
+    "date": "2026-11-03",
+    "pull_request": 46,
+    "application": {
+      "passed": 1024,
+      "skipped": 3
+    },
+    "website": {
+      "passed": 184,
+      "skipped": 1
+    },
+    "node": {
+      "passed": 5
+    },
+    "packaged_build_checks": {
+      "platform": "macos-arm64",
+      "window_checks": "offscreen"
+    },
+    "ci_passed_on_pull_request": [
+      "PostgreSQL",
+      "MariaDB",
+      "Docker",
+      "package checks",
+      "native desktop builds"
+    ],
+    "windows_real_terminal_checked": false,
+    "packaged_window_opened_by_command": false,
+    "packaged_linux_browser_opening_checked": false,
+    "real_email_sent": false
   }
 }

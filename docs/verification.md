@@ -2,7 +2,7 @@
 
 QuillSail is beta software. These are development checks, not an independent security audit. Private deployment addresses, access details and operations records are excluded from the public repository.
 
-## Unreleased — the terminal as a full alternative to the desktop window
+## 1.17.0 Beta — the terminal as a full alternative to the desktop window (#46)
 
 The `quillsail` command from the terminal installer now runs the same commands as the Python package. On its own it prints help, `quillsail desktop` opens the window, and `quillsail instance` starts a publication the way opening the app does. Each part of the window has a matching command. The change began with a real report: on a Linux server with no desktop, `quillsail instance list` printed nothing, because the installer's command sent it to the desktop app in the background and discarded the output.
 
@@ -12,7 +12,9 @@ A PyInstaller build on an Apple silicon Mac ran these paths through the installe
 
 Not checked: the Windows console path on a real terminal, opening the real desktop window with `quillsail desktop` from a packaged app, and browser opening from a packaged Linux app. The `.deb`, DMG and Windows setup still don't add a `quillsail` command; only the terminal installer does.
 
-Application tests: 1022 passed, 3 skipped. Website tests: 184 passed, 1 skipped. Ruff, generated references and public-file boundaries passed. Node tests didn't run locally, because this Mac has no Node. They run in CI.
+Every native desktop build now runs the packaged command, captures its output and checks that it arrived. That check exists because the first Windows build ran the command and exited cleanly while its output went missing, which would have left redirected output empty on Windows. On the pull request, PostgreSQL, MariaDB, Docker, package checks, the website on Ubuntu and macOS, and all four native desktop builds passed.
+
+Application tests: 1024 passed, 3 skipped. Website tests: 184 passed, 1 skipped. Node tests: 5 passed, in CI, because this Mac has no Node. Ruff, generated references and public-file boundaries passed.
 
 ## 1.16.0 Beta — visual editor, HTML writing and Jekyll import (#20)
 
