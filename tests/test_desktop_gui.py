@@ -45,7 +45,7 @@ def test_gui_closes_after_stopping_without_recursive_quit(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.parametrize("scenario", ["available", "current", "offline", "install"])
+@pytest.mark.parametrize("scenario", ["available", "current", "offline", "install", "elsewhere"])
 def test_update_controls_keep_publication_running_until_an_approved_install(tmp_path, scenario):
     pytest.importorskip("PySide6")
     script = textwrap.dedent("""
@@ -53,10 +53,15 @@ def test_update_controls_keep_publication_running_until_an_approved_install(tmp_
         from pathlib import Path
         from PySide6.QtCore import QTimer
         from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox
-        from copydesk import __version__, desktop_ui, updater
+        from copydesk import __version__, desktop_ui, instances, updater
 
         scenario, root = sys.argv[1], Path(sys.argv[2])
         calls = []
+        if scenario == 'elsewhere':
+            registered = instances.InstanceRegistry.list
+            other = instances.Instance('other', 'Other Site', root.parent / 'other')
+            instances.InstanceRegistry.list = lambda self: [*registered(self), other]
+            instances.running_url = lambda item: 'http://127.0.0.1:5999' if item.id == 'other' else ''
 
         class Runtime:
             def __init__(self, root):
@@ -127,6 +132,13 @@ def test_update_controls_keep_publication_running_until_an_approved_install(tmp_
                         window.update_channel.setCurrentIndex(0)
                         assert window.available_update is None
                         assert window.update_button.text() == 'Check for updates'
+                        window.request_quit()
+                        state[0] = 3
+                    elif scenario == 'elsewhere':
+                        # Terminal instances run from the files that the update replaces.
+                        window.update_button.click()
+                        assert calls == ['start'] and not window.busy
+                        assert 'Stop Other Site first' in window.update_status.text()
                         window.request_quit()
                         state[0] = 3
                     else:

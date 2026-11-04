@@ -6,6 +6,7 @@ import argparse
 import faulthandler
 import json
 import logging
+import os
 import re
 import sys
 import tempfile
@@ -783,6 +784,11 @@ def run(*, data_dir: Path | None = None, instance_id: str | None = None, open_br
                 self.operation(lambda: UpdateClient().check(channel=channel, target=target), self.update_checked, self.update_failed)
                 return
             release = self.available_update
+            elsewhere = [item.name for item in registry.list() if running_url(item)
+                         and not getattr(self.runtimes.get(item.id), "server", None)]
+            if elsewhere:
+                self.update_status.setText(f"Stop {', '.join(elsewhere)} first, then try again. They're running in a terminal or another window, from the files this update replaces.")
+                return
             dialog = QMessageBox(self)
             dialog.setWindowTitle("Update QuillSail")
             dialog.setTextFormat(Qt.TextFormat.PlainText)
@@ -1011,6 +1017,14 @@ def main():
     if sys.argv[1:2] == ["cli"]:
         if sys.platform == "win32":
             attach_windows_console()
+        if getattr(sys, "frozen", False):
+            # Programs started from here, including this app again, must not inherit
+            # its bundled libraries. This happens once, before any threads start.
+            from copydesk.update_install import clean_environment
+
+            environment = clean_environment()
+            os.environ.clear()
+            os.environ.update(environment)
         from copydesk.cli import main as cli_main
 
         cli_main(sys.argv[2:], prog_name="quillsail")

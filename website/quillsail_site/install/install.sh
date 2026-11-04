@@ -286,7 +286,7 @@ installed_version() {
 
 check_running() {
   if command -v pgrep >/dev/null 2>&1 && pgrep -f "$EXECUTABLE" >/dev/null 2>&1; then
-    fail "QuillSail is running. Run quillsail instance stop --all and quillsail quit, then run the installer again."
+    fail "QuillSail is running. Choose Quit QuillSail in its window, or run quillsail instance stop --all. Then run the installer again."
   fi
 }
 

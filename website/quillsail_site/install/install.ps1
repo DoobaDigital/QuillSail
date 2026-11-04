@@ -72,7 +72,7 @@ function Install-QuillSail {
     function Assert-NotRunning {
         $running = Get-Process -Name 'QuillSail' -ErrorAction SilentlyContinue |
             Where-Object { $_.Path -and $_.Path -ieq $exe }
-        if ($running) { Stop-Install 'QuillSail is running. Run quillsail instance stop --all and quillsail quit, then run the installer again.' }
+        if ($running) { Stop-Install 'QuillSail is running. Choose Quit QuillSail in its window, or run quillsail instance stop --all. Then run the installer again.' }
     }
 
     # --- uninstall -----------------------------------------------------------------------------

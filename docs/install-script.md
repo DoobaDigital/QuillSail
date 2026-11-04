@@ -85,7 +85,7 @@ Older installers wrote a `quillsail` command that could only open the window, an
 
 ## Updating
 
-The app updates itself: choose **Check for updates** in the launcher, or run `quillsail update`. Running the installer again also installs the newest release, as long as QuillSail isn't running. Stop it first with `quillsail instance stop --all` and `quillsail quit`, or **Quit QuillSail**.
+The app updates itself: choose **Check for updates** in the launcher, or run `quillsail update`. Running the installer again also installs the newest release, as long as QuillSail isn't running. Stop it first with **Quit QuillSail** in its window, or `quillsail instance stop --all`.
 
 ## Uninstalling
 
@@ -127,7 +127,7 @@ The release details are available as JSON at `https://quillsail.blog/api/v1/rele
 
 ## Troubleshooting
 
-**"QuillSail is running."** Run `quillsail instance stop --all` and `quillsail quit`, or choose **Quit QuillSail** in the launcher, then run the installer again.
+**"QuillSail is running."** Choose **Quit QuillSail** in its window, or run `quillsail instance stop --all`. Then run the installer again.
 
 **`quillsail: command not found`.** Open a new terminal window so it reads the updated `PATH`. If you used `--no-modify-path`, add `~/.local/bin` to your `PATH` yourself.
 

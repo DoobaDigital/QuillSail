@@ -12,9 +12,11 @@ A PyInstaller build on an Apple silicon Mac ran these paths through the installe
 
 Not checked: the Windows console path on a real terminal, opening the real desktop window with `quillsail desktop` from a packaged app, and browser opening from a packaged Linux app. The `.deb`, DMG and Windows setup still don't add a `quillsail` command; only the terminal installer does.
 
-Every native desktop build now runs the packaged command, captures its output and checks that it arrived. That check exists because the first Windows build ran the command and exited cleanly while its output went missing, which would have left redirected output empty on Windows. On the pull request, PostgreSQL, MariaDB, Docker, package checks, the website on Ubuntu and macOS, and all four native desktop builds passed.
+Every native desktop build now runs a disposable publication through the packaged command. It checks that the command's output arrives, starts the publication in the background, gets a new link and stops it. The output check exists because the first Windows build ran the command and exited cleanly while its output went missing, which would have left redirected output empty on Windows. On the pull request, PostgreSQL, MariaDB, Docker, package checks, the website on Ubuntu and macOS, and all four native desktop builds passed.
 
-Application tests: 1024 passed, 3 skipped. Website tests: 184 passed, 1 skipped. Node tests: 5 passed, in CI, because this Mac has no Node. Ruff, generated references and public-file boundaries passed.
+A code review of the pull request found ten problems, all fixed before merging. The most serious was a crash in `instance list`, `instance status` and the launcher's status checks when a publication's saved port was invalid. The others were an empty default publication starting instead of a named one, `--background` promising too much for an instance started elsewhere, processes sharing a rotating log, `instance logs --follow` losing its place, an installer message that didn't help someone upgrading, the process environment changing while threads ran, the launcher's update replacing files terminal instances run from, `instance folder --open` reporting success when nothing opened, and closing a Windows console skipping the clean stop.
+
+Application tests: 1030 passed, 3 skipped. Website tests: 184 passed, 1 skipped. Node tests: 5 passed, in CI, because this Mac has no Node. Ruff, generated references and public-file boundaries passed.
 
 ## 1.16.0 Beta — visual editor, HTML writing and Jekyll import (#20)
 

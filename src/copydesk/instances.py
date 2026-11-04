@@ -53,7 +53,7 @@ def running_status(instance: Instance) -> dict:
         saved = json.loads((instance.root / "desktop.json").read_text(encoding="utf-8"))
         port = saved.get("port")
         if saved.get("format") != FORMAT or type(port) is not int or not 1 <= port <= 65535:
-            return ""
+            return {}
         url = f"http://127.0.0.1:{port}"
         with requests.Session() as client:
             client.trust_env = False
