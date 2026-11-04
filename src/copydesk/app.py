@@ -384,19 +384,21 @@ def _register_template_helpers(app: Flask, state: CopydeskState) -> None:
         from flask import url_for
 
         items = [
-            ("articles", "Blog" if publication.is_blog() else "Articles", url_for("public.articles")),
-            ("competitions", "Competitions", url_for("competitions.index")),
+            ("articles", "Blog" if publication.is_blog() else "Articles", url_for("public.home" if publication.is_blog() else "public.articles")),
         ]
+        if publication.has_competitions() and publication.interactive_available():
+            items.append(("competitions", "Competitions", url_for("competitions.index")))
         if publication.has_newsletter():
             items.insert(0, ("issues", "Issues", url_for("public.issues")))
         pages = db.session.scalars(
             select(Page).where(Page.show_in_nav.is_(True), Page.is_published.is_(True)).order_by(Page.nav_position)
         ).all()
         items.extend((f"page:{p.slug}", p.title, url_for("public.page", slug=p.slug)) for p in pages)
-        if settings.get("business.enabled"):
+        if settings.get("business.enabled") and publication.interactive_available():
             items.append(("business", "For businesses", url_for("business.contact")))
-        if settings.get("submissions.enabled") or (publication.is_blog() and permissions.has(auth.current_user, "publish")):
+        if publication.interactive_available() and (settings.get("submissions.enabled") or (publication.is_blog() and permissions.has(auth.current_user, "publish"))):
             items.append(("write", "My posts" if publication.is_blog() and auth.current_user.is_authenticated else "Write for us", url_for("write.index")))
+        items.append(("search", "Search", url_for("public.search")))
         items = state.hooks.apply_filters("nav.items", items, user=auth.current_user)
         g._nav_items = items
         return items
@@ -434,6 +436,9 @@ def _register_template_helpers(app: Flask, state: CopydeskState) -> None:
             "current_user": auth.current_user,
             "blog_mode": publication.is_blog(),
             "newsletter_enabled": publication.has_newsletter(),
+            "competitions_enabled": publication.has_competitions() and publication.interactive_available(),
+            "interactive_available": publication.interactive_available(),
+            "registration_available": publication.interactive_available() and settings.get("accounts.registration") != "closed",
             "site": settings.SettingsNamespace("site"),
             "setting": settings.get,
             "can": lambda perm: permissions.has(auth.current_user, perm),

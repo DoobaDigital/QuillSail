@@ -5,7 +5,7 @@ from __future__ import annotations
 from flask import abort, flash, redirect, render_template, request, url_for
 from sqlalchemy import func, or_, select
 
-from copydesk import audit, newsletter, notify, workflow
+from copydesk import audit, newsletter, notify, publication, workflow
 from copydesk import permissions as perms
 from copydesk.auth import current_user
 from copydesk.db import db
@@ -34,7 +34,7 @@ def _article(article_id: int) -> Article:
 @bp.get("/articles/")
 @perms.require("review")
 def articles():
-    tab = request.args.get("tab", "review")
+    tab = request.args.get("tab", "published" if publication.is_blog() else "review")
     statuses = {key: value for key, _, value in TABS}.get(tab) or TABS[0][2]
     q = (request.args.get("q") or "").strip()
     section_id = parse_int(request.args.get("section"))

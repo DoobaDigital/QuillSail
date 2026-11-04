@@ -13,7 +13,16 @@ from copydesk.auth import current_user
 from copydesk.db import db
 from copydesk.email_connections import public_status
 from copydesk.helpers import state
-from copydesk.models import Article, Group, GroupMembership, Issue, Job, Subscriber, User
+from copydesk.models import (
+    Article,
+    ArticleAuthor,
+    Group,
+    GroupMembership,
+    Issue,
+    Job,
+    Subscriber,
+    User,
+)
 from copydesk.utils import utcnow
 from copydesk.views.dashboard import bp
 
@@ -33,7 +42,7 @@ def system_warnings() -> list[tuple[str, str]]:
     mail_status = public_status()
     if mail_status.get("problem"):
         warnings.append(("error", "Email needs attention. Open Settings → Email to reconnect your sender."))
-    if mail_status["provider"] in ("console", "file", "memory") and not config.debug:
+    if publication.has_newsletter() and mail_status["provider"] in ("console", "file", "memory") and not config.debug:
         warnings.append(("warning", f"Email is set to the “{mail_status['provider']}” backend, so no real email is "
                                     "being sent. Connect Gmail, Outlook, or an SMTP server in Settings → Email."))
     return warnings
@@ -83,6 +92,12 @@ def skip_appearance():
 @bp.get("/")
 def overview():
     context: dict = {"dash_active": "overview"}
+    if publication.is_blog() and (perms.has(current_user, "submit") or perms.has(current_user, "publish")):
+        context["own_draft_count"] = db.session.scalar(
+            select(func.count()).select_from(Article)
+            .join(ArticleAuthor, ArticleAuthor.article_id == Article.id)
+            .where(ArticleAuthor.user_id == current_user.id, Article.status == "draft")
+        ) or 0
     if perms.has(current_user, "review"):
         context["waiting"] = db.session.scalars(
             select(Article).where(Article.status.in_(("submitted", "in_review")))
@@ -92,6 +107,11 @@ def overview():
             select(Article.status, func.count()).group_by(Article.status)
         ).all())
         context["status_counts"] = status_counts
+        if publication.is_blog():
+            context["recent_posts"] = db.session.scalars(
+                select(Article).where(Article.status == "published", Article.published_at.is_not(None))
+                .order_by(Article.published_at.desc(), Article.id.desc()).limit(5)
+            ).all()
         context["mine"] = db.session.scalars(
             select(Article).where(
                 Article.assigned_editor_id == current_user.id,

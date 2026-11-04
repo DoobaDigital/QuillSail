@@ -11,8 +11,15 @@ Switching modes preserves existing posts, issues, subscriptions, groups and perm
 | Homepage | The newsletter: latest issue and sign-up | Chronological posts | Chronological posts, with sign-up |
 | Email subscriptions | Shown | Hidden | Shown |
 | Newsletter issues | Yes | Existing issue pages stay available | Yes |
+| Competitions | Included | Optional, off by default | Optional, off by default |
 
 Blog modes use a chronological post homepage and an RSS link. Blog + newsletter also shows email subscriptions; Blog hides the newsletter calls to action. Existing issue and subscription URLs remain available, so changing presentation doesn't break previously shared links.
+
+Readers can browse sections with published public posts, search from the main navigation, and follow newer and older public posts from each post's footer. The blog dashboard shows latest posts and your own private draft count, opens **Posts** on the published tab, and hides newsletter issues and subscribers in Blog mode. With submissions closed, empty review panels disappear; existing contributions that still need attention remain visible. Search in Blog mode covers posts; Blog + newsletter also searches issues.
+
+To add competitions to either blog mode, enable **Settings → General → Enable competitions on blogs**. This adds competition pages and dashboard management. Turning it off preserves existing competitions, entries, votes and results, and makes their routes unavailable until re-enabled. Switching to Newsletter restores its normal competition feature.
+
+Desktop-hosted public websites support reading, search, tags, feeds and email subscriptions. Sign-in, community writing, competitions and account management stay on the local desktop address; public navigation omits these unavailable actions. Use a [server installation](installation.md) for public accounts, submissions or competitions. Owners sign in through **Open dashboard** in the desktop app. A server-hosted blog keeps its normal sign-in and optional community submissions.
 
 Use the **Writing** and **Accounts** settings to choose whether to accept community submissions or keep the blog for its existing authors.
 

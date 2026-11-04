@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytest
 import responses
+from lxml import html
 from sqlalchemy import select, text
 from werkzeug.test import Client as WSGIClient
 from werkzeug.wrappers import Response
@@ -86,10 +87,12 @@ def test_public_listener_rejects_peers_hosts_and_missing_visitor():
     assert client.get('/', base_url='http://news.example.test', environ_overrides={'REMOTE_ADDR': '198.51.100.3'}).status_code == 404
 
 
-def test_desktop_public_port_blocks_every_private_endpoint_and_keeps_local_cookie(tmp_path):
+@pytest.mark.parametrize('mode', ['newsletter', 'blog', 'hybrid'])
+def test_desktop_public_port_blocks_every_private_endpoint_and_keeps_local_cookie(tmp_path, mode):
     import requests
 
-    from copydesk import seed
+    from copydesk import seed, workflow
+    from copydesk.models import Tag
     from copydesk.views.setup import create_admin
 
     runtime = DesktopRuntime(tmp_path / 'publication')
@@ -97,7 +100,14 @@ def test_desktop_public_port_blocks_every_private_endpoint_and_keeps_local_cooki
     try:
         with runtime.app.app_context():
             seed.seed('Synthetic publication')
-            create_admin(email='owner@example.test', name='Owner', password='synthetic-test-password')
+            owner = create_admin(email='owner@example.test', name='Owner', password='synthetic-test-password')
+            settings.set_value('site.mode', mode)
+            settings.set_value('blog.competitions_enabled', True)
+            article = workflow.create_draft(owner, 'A public desktop post')
+            workflow.save(article, owner, title=article.title, subtitle='', body='Public post text ' * 20)
+            article.status, article.published_at = 'published', utcnow()
+            article.tags.append(Tag(name='Desktop tag', slug='desktop-tag'))
+            slug = article.slug
             db.session.commit()
         runtime.set_public_url('https://news.example.test')
         local = runtime.app.test_client()
@@ -106,9 +116,22 @@ def test_desktop_public_port_blocks_every_private_endpoint_and_keeps_local_cooki
         assert 'Secure;' not in response.headers.get('Set-Cookie', '')
         root = f'http://127.0.0.1:{runtime.public_server.server_port}'
         headers = {'Host': 'news.example.test', 'X-Forwarded-For': '198.51.100.5'}
-        for path in ('/dashboard/', '/login', '/setup/', '/_desktop/open', '/_desktop/status', '/api/v1/articles', '/write/', '/account/'):
+        for path in ('/dashboard/', '/login', '/setup/', '/_desktop/open', '/_desktop/status', '/api/v1/articles', '/write/', '/account/', '/competitions/'):
             assert requests.get(root + path, headers=headers, allow_redirects=False, timeout=3).status_code == 404, path
         assert requests.get(root + '/healthz', headers=headers, timeout=3).status_code == 200
+        for path in ('/', f'/articles/{slug}/', '/tags/desktop-tag/', '/issues/feed.xml', '/favicon.svg'):
+            response = requests.get(root + path, headers=headers, timeout=3)
+            assert response.status_code == 200, path
+            if path.endswith('.xml') or path.endswith('.svg'):
+                continue
+            page = html.fromstring(response.content)
+            hrefs = page.xpath('//a/@href')
+            assert not any(href.startswith(('/login', '/join', '/write/', '/competitions/')) for href in hrefs)
+            # Walk the generated reader links, including tags and feed discovery.
+            for href in set(hrefs + page.xpath('//link[@rel="alternate"]/@href')):
+                if href.startswith('/') and not href.startswith('//'):
+                    linked = requests.get(root + href, headers=headers, timeout=3)
+                    assert linked.status_code == 200, (path, href)
         # URL generation outside requests must still work in worker/email jobs.
         with runtime.app.app_context():
             from copydesk.helpers import external_url
@@ -442,6 +465,7 @@ def test_edge_snapshot_contains_no_editor_session_or_remote_stylesheet_fetch(app
         assert 'Launching soon' in html
         assert 'editor@example.edu' not in html and 'Test Editor' not in html
         assert 'name="csrf_token"' not in html
+        assert 'href="/login' not in html and 'href="/join' not in html
         assert writes[0][0] == 'PUT' and writes[0][1].endswith('/values/snapshot')
 
 

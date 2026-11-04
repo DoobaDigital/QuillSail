@@ -55,6 +55,8 @@ def require_read() -> None:
     """If the "Everyone" group can't read, the publication is private."""
     if not perms.has(current_user, "read"):
         if not current_user.is_authenticated:
+            if not publication.interactive_available():
+                abort(403)
             abort(redirect(url_for("auth.login", next=request.full_path.rstrip("?"))))
         abort(403)
 
@@ -67,12 +69,20 @@ def published_issues():
     return select(Issue).where(Issue.published_at.is_not(None))
 
 
+def published_sections():
+    return db.session.scalars(
+        select(Section).join(Article, Article.section_id == Section.id)
+        .where(Article.status == "published", Article.published_at.is_not(None), Article.visibility == "public")
+        .distinct().order_by(Section.position, Section.name)
+    ).all()
+
+
 def lock_reason(article: Article) -> str | None:
     """Why the current visitor can't read ``article`` (None if they can)."""
     if workflow.can_view(current_user, article):
         return None
     if article.visibility == "members":
-        return "This article is for members. Sign in to read it."
+        return "This article is for members. Sign in to read it." if publication.interactive_available() else "This article is for members."
     if article.visibility == "groups":
         names = ", ".join(g.name for g in article.visibility_groups) or "certain groups"
         return f"This article is only for {names}."
@@ -102,7 +112,7 @@ def home():
     require_read()
     if publication.is_blog():
         page = paginate(published_articles().order_by(Article.published_at.desc(), Article.id.desc()), per_page=10)
-        return render_template("public/blog_home.html", page=page, active_nav="articles", groups=signup_groups() if settings.get("newsletter.ask_audience") else [])
+        return render_template("public/blog_home.html", page=page, active_nav="articles", sections=published_sections(), groups=signup_groups() if settings.get("newsletter.ask_audience") else [])
     latest_issue = db.session.scalars(published_issues().order_by(Issue.number.desc()).limit(1)).first()
     featured = db.session.scalars(
         published_articles().where(Article.featured.is_(True)).order_by(Article.published_at.desc()).limit(1)
@@ -130,7 +140,8 @@ def home():
 def articles():
     require_read()
     page = paginate(published_articles().order_by(Article.published_at.desc()), per_page=15)
-    sections = db.session.scalars(select(Section).order_by(Section.position, Section.name)).all()
+    sections = (published_sections() if publication.is_blog() else
+                db.session.scalars(select(Section).order_by(Section.position, Section.name)).all())
     return render_template("public/articles.html", page=page, sections=sections, active_nav="articles")
 
 
@@ -158,6 +169,20 @@ def article(slug: str):
             .order_by(Article.published_at.desc())
             .limit(3)
         ).all()
+    newer_post = older_post = None
+    if publication.is_blog() and not preview:
+        # Only link to public posts; drafts and restricted neighbors stay private.
+        neighbors = published_articles().where(Article.visibility == "public")
+        newer_post = db.session.scalar(
+            neighbors.where(or_(Article.published_at > item.published_at,
+                                and_(Article.published_at == item.published_at, Article.id > item.id)))
+            .order_by(Article.published_at, Article.id).limit(1)
+        )
+        older_post = db.session.scalar(
+            neighbors.where(or_(Article.published_at < item.published_at,
+                                and_(Article.published_at == item.published_at, Article.id < item.id)))
+            .order_by(Article.published_at.desc(), Article.id.desc()).limit(1)
+        )
     return render_template(
         "public/article.html",
         article=item,
@@ -165,6 +190,8 @@ def article(slug: str):
         locked_message=reason,
         issues=issues,
         related=related,
+        newer_post=newer_post,
+        older_post=older_post,
         groups=signup_groups() if settings.get("newsletter.ask_audience") else [],
         active_nav="articles",
         can_edit_post=workflow.can_edit(current_user, item),
@@ -310,8 +337,8 @@ def search():
             .where(or_(func.lower(Issue.title).like(like), func.lower(Issue.intro).like(like)))
             .order_by(Issue.number.desc())
             .limit(5)
-        ).all()
-    return render_template("public/search.html", q=query_text, page=page, issue_hits=issue_hits)
+        ).all() if publication.has_newsletter() else []
+    return render_template("public/search.html", q=query_text, page=page, issue_hits=issue_hits, active_nav="search")
 
 
 @bp.get("/<slug>")
@@ -356,7 +383,7 @@ def feed():
         }
         for a in rows
     ]
-    return _atom(entries, settings.get("site.name"), external_url("public.feed"), external_url("public.articles"))
+    return _atom(entries, settings.get("site.name"), external_url("public.feed"), external_url("public.home" if publication.is_blog() else "public.articles"))
 
 
 @bp.get("/issues/feed.xml")

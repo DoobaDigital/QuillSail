@@ -7,7 +7,7 @@
   {% if newsletter_enabled and can("manage_issues") %}
   <form method="post" action="{{ url_for('dash.issue_new') }}">{{ forms.csrf() }}<button class="button button-primary" type="submit">{{ icon("plus") }} New issue</button></form>
   {% endif %}
-  {% if can("submit") %}
+  {% if can("submit") or (blog_mode and can("publish")) %}
     <form method="post" action="{{ url_for('write.new') }}">{{ forms.csrf() }}<button class="button" type="submit">{{ icon("pen") }} {{ 'New post' if blog_mode else 'Write something' }}</button></form>
   {% endif %}
 {% endblock %}
@@ -38,17 +38,35 @@
 {% endif %}
 
 <div class="stats">
+  {% if blog_mode and status_counts is defined %}
+  <a class="stat" href="{{ url_for('dash.articles', tab='published') }}">
+    <span class="stat-label">Published posts</span>
+    <span class="stat-value">{{ status_counts.get('published', 0)|number }}</span>
+    <span class="stat-note">On your blog</span>
+  </a>
+  {% endif %}
+  {% if own_draft_count is defined %}
+  <a class="stat" href="{{ url_for('write.index', _anchor='bucket-drafts') }}">
+    <span class="stat-label">Your drafts</span>
+    <span class="stat-value">{{ own_draft_count|number }}</span>
+    <span class="stat-note">Private until you publish or submit</span>
+  </a>
+  {% endif %}
   {% if status_counts is defined %}
+  {% if not blog_mode or setting('submissions.enabled') or status_counts.get('submitted', 0) or status_counts.get('in_review', 0) or status_counts.get('changes_requested', 0) %}
   <a class="stat" href="{{ url_for('dash.articles', tab='review') }}">
     <span class="stat-label">Waiting for review</span>
     <span class="stat-value">{{ ((status_counts.get("submitted", 0)) + (status_counts.get("in_review", 0)))|number }}</span>
     <span class="stat-note">{{ status_counts.get("changes_requested", 0) }} with writers for changes</span>
   </a>
+  {% endif %}
+  {% if not blog_mode or setting('submissions.enabled') or status_counts.get('accepted', 0) %}
   <a class="stat" href="{{ url_for('dash.articles', tab='accepted') }}">
     <span class="stat-label">Accepted, not yet published</span>
     <span class="stat-value">{{ status_counts.get("accepted", 0)|number }}</span>
-    <span class="stat-note">Ready for the next issue</span>
+    <span class="stat-note">{{ 'Ready to publish on the blog' if blog_mode else 'Ready for the next issue' }}</span>
   </a>
+  {% endif %}
   {% endif %}
   {% if subscriber_count is defined %}
   <a class="stat" href="{{ url_for('dash.subscribers') }}">
@@ -69,7 +87,19 @@
 {{ slot("dashboard_overview", user=current_user) }}
 
 <div class="grid-2">
-  {% if waiting is defined %}
+  {% if recent_posts is defined %}
+  <section class="panel">
+    <div class="panel-header"><h2>Latest posts</h2><a href="{{ url_for('dash.articles', tab='published') }}">See all</a></div>
+    {% if recent_posts %}
+    <ul class="panel-list">
+      {% for article in recent_posts %}
+      <li><div><a class="title" href="{{ url_for('dash.article', article_id=article.id) }}">{{ article.display_title }}</a><div class="small muted">{{ article.published_at|date }}</div></div><a class="button button-small" href="{{ url_for('public.article', slug=article.slug) }}">View<span class="visually-hidden"> {{ article.display_title }}</span></a></li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="panel-body"><p class="muted">No posts published yet. Start with New post above, or bring your writing over with Import a blog.</p></div>{% endif %}
+  </section>
+  {% endif %}
+  {% if waiting is defined and (not blog_mode or waiting or setting('submissions.enabled')) %}
   <section class="panel">
     <div class="panel-header">
       <h2>Oldest submissions first</h2>

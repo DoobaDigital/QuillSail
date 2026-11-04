@@ -4,6 +4,8 @@ import base64
 import json
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
+from flask import has_request_context, request
+
 from copydesk import settings
 from copydesk.helpers import external_url, state
 
@@ -21,6 +23,15 @@ def is_blog():
 
 def has_newsletter():
     return settings.get("site.mode") != "blog"
+
+
+def has_competitions():
+    return not is_blog() or settings.get("blog.competitions_enabled")
+
+
+def interactive_available():
+    """Desktop public sites expose reading and subscriptions, not accounts."""
+    return not has_request_context() or request.environ.get("quillsail.listener") != "public"
 
 
 def valid_web_url(value, *, base=False):

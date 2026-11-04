@@ -82,12 +82,12 @@
     {% endif %}
     {% else %}
     {{ ui.empty("Nothing published yet",
-                "The first articles will show up here. Want to be one of the first writers?",
-                url_for("write.index") if setting("submissions.enabled") else None, "Start writing", "file") }}
+                "The first articles will show up here.",
+                url_for("write.index") if interactive_available and setting("submissions.enabled") else None, "Start writing", "file") }}
     {% endif %}
   </section>
 
-  {% if setting("submissions.enabled") %}
+  {% if interactive_available and setting("submissions.enabled") %}
   <section class="section">
     <div class="card-callout spread">
       <div>

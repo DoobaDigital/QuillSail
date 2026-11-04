@@ -109,6 +109,8 @@ define("site.footer", "", "Footer text", type="markdown",
        help="Optional. Appears at the bottom of every page.")
 define("blog.newsletter_url", "", "External newsletter website", type="url",
        help="Optional. The base URL of another QuillSail newsletter, such as https://acm.cse.sc.edu/newsletter. Public blog posts can be offered there for editorial review. Nothing is submitted automatically.")
+define("blog.competitions_enabled", False, "Enable competitions on blogs", type="bool",
+       help="Optional for Blog and Blog + newsletter. Adds competition pages and management. Newsletter publications always include competitions. Desktop public websites support reading and subscriptions only; use a server installation for public competitions and accounts. Disabling preserves existing competitions.")
 
 # --- Business outreach ---------------------------------------------------------------
 define("business.enabled", False, "Accept business outreach", type="bool",

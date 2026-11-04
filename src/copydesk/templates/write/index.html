@@ -6,9 +6,9 @@
 <div class="container container-medium">
   <header class="page-intro">
     <h1>{{ 'My posts' if blog_mode and current_user.is_authenticated else 'Write for ' ~ site.name }}</h1>
-    {% if blog_mode and can('publish') %}<p class="lead">Write a post, save a private draft, and publish when you're ready. Newsletter inclusion is a separate choice.</p>{% else %}<div class="lead">{{ setting("submissions.intro")|markdown }}</div>{% endif %}
+    {% if blog_mode and can('publish') %}<p class="lead">Write a post, save a private draft, and publish when you're ready.{% if newsletter_enabled %} Newsletter inclusion is a separate choice.{% endif %}</p>{% else %}<div class="lead">{{ setting("submissions.intro")|markdown }}</div>{% endif %}
   </header>
-  {% if submissions_open or can('publish') %}<p>Already published something on your own blog? <a href="{{ url_for('write.from_blog') }}">Offer an existing blog post</a> to the editors.</p>{% endif %}
+  {% if newsletter_enabled and submissions_open %}<p>Already published something on your own blog? <a href="{{ url_for('write.from_blog') }}">Offer an existing blog post</a> to the editors.</p>{% endif %}
 
   {% if not submissions_open and not (blog_mode and can('publish')) %}
   <div class="flashes">{{ ui.alert("info", setting("submissions.closed_message")) }}</div>
@@ -18,13 +18,14 @@
   <section class="card-callout">
     <h2>How it works</h2>
     <ol class="checklist">
-      <li>{{ icon("user") }} <span><strong>Create a free account.</strong> It takes a minute.</span></li>
+      {% if registration_available %}<li>{{ icon("user") }} <span><strong>Create a free account.</strong> It takes a minute.</span></li>
+      {% else %}<li>{{ icon("user") }} <span><strong>Sign in to your account.</strong> Contact the publisher if you need an invitation.</span></li>{% endif %}
       <li>{{ icon("pen") }} <span><strong>Write your piece here, in the browser.</strong> Drafts stay private until you submit them.</span></li>
       <li>{{ icon("message") }} <span><strong>An editor reviews it.</strong> They may ask for changes. You'll get an email at every step.</span></li>
       <li>{{ icon("send") }} <span><strong>It's published</strong> on the site{% if newsletter_enabled %}, and may be selected for a newsletter issue{% endif %}.</span></li>
     </ol>
     <div class="cluster section">
-      <a class="button button-primary" href="{{ url_for('auth.join', next=url_for('write.index')) }}">Create an account</a>
+      {% if registration_available %}<a class="button button-primary" href="{{ url_for('auth.join', next=url_for('write.index')) }}">Create an account</a>{% endif %}
       <a class="button" href="{{ url_for('auth.login', next=url_for('write.index')) }}">Sign in</a>
     </div>
     {% if guidelines %}<p class="muted">Before you start, read the <a href="{{ url_for('public.page', slug=guidelines.slug) }}">writing guidelines</a>.</p>{% endif %}
@@ -91,7 +92,7 @@
     {% endif %}
     {% endfor %}
   {% else %}
-  {{ ui.empty("You haven't written anything yet", "Start a new piece. It stays private until you submit it to the editors.", icon_name="pen") }}
+  {{ ui.empty("You haven't written any posts yet" if blog_mode else "You haven't written anything yet", "Start a new post. Drafts stay private until you publish." if blog_mode and can('publish') else "Start a new piece. It stays private until you submit it to the editors.", icon_name="pen") }}
   {% endif %}
   {% endif %}
 </div>

@@ -60,7 +60,7 @@
     {% if hidden_count %}
     <p class="muted small">
       {{ icon("lock") }} {{ pluralize(hidden_count, "more item") }} in this issue {{ "was" if hidden_count == 1 else "were" }} sent only to particular reader groups.
-      {% if not current_user.is_authenticated %}<a href="{{ url_for('auth.login', next=request.path) }}">Sign in</a> to see what's for you.{% endif %}
+      {% if interactive_available and not current_user.is_authenticated %}<a href="{{ url_for('auth.login', next=request.path) }}">Sign in</a> to see what's for you.{% endif %}
     </p>
     {% endif %}
 

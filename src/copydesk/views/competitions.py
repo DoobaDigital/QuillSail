@@ -3,7 +3,7 @@
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from sqlalchemy import select
 
-from copydesk import audit
+from copydesk import audit, publication
 from copydesk import competitions as contest
 from copydesk.auth import current_user, verified_required
 from copydesk.db import db
@@ -14,6 +14,12 @@ from copydesk.utils import parse_int, utcnow
 from copydesk.views.public import require_read
 
 bp = Blueprint("competitions", __name__, url_prefix="/competitions")
+
+
+@bp.before_request
+def _enabled():
+    if not publication.has_competitions():
+        abort(404)
 
 
 @bp.context_processor

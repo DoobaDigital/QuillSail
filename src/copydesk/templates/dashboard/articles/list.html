@@ -1,10 +1,10 @@
 {% extends "layout/dashboard.html" %}
 
-{% block page_title %}Articles{% endblock %}
-{% block lead %}<p class="lead">Submissions waiting for review are listed oldest first. Drafts stay private to their writers until they're submitted.</p>{% endblock %}
+{% block page_title %}{{ 'Posts' if blog_mode else 'Articles' }}{% endblock %}
+{% block lead %}<p class="lead">{% if blog_mode %}Manage published posts and review contributions. Your private drafts are in My posts.{% else %}Submissions waiting for review are listed oldest first. Drafts stay private to their writers until they're submitted.{% endif %}</p>{% endblock %}
 {% block actions %}
-  {% if can("submit") %}
-  <form method="post" action="{{ url_for('write.new') }}">{{ forms.csrf() }}<button class="button" type="submit">{{ icon("pen") }} Write an article</button></form>
+  {% if can("submit") or (blog_mode and can("publish")) %}
+  <form method="post" action="{{ url_for('write.new') }}">{{ forms.csrf() }}<button class="button" type="submit">{{ icon("pen") }} {{ 'New post' if blog_mode else 'Write an article' }}</button></form>
   {% endif %}
 {% endblock %}
 
@@ -46,7 +46,7 @@
   <table class="table">
     <thead>
       <tr>
-        <th scope="col">Article</th>
+        <th scope="col">{{ 'Post' if blog_mode else 'Article' }}</th>
         <th scope="col">Writer</th>
         <th scope="col">Status</th>
         <th scope="col">Section</th>
@@ -80,7 +80,7 @@
   {% if tab == "review" and not q %}
   {{ ui.empty("Nothing waiting for review", "When writers submit pieces they'll appear here, and editors who want them get an email too.", icon_name="inbox") }}
   {% else %}
-  {{ ui.empty("No articles here", "Try another tab or clear the filters.", icon_name="file") }}
+  {{ ui.empty("No posts here" if blog_mode else "No articles here", "Try another tab or clear the filters.", icon_name="file") }}
   {% endif %}
 {% endif %}
 {% endblock %}

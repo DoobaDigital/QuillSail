@@ -385,7 +385,7 @@ class DesktopRuntime:
         if request.endpoint not in PUBLIC_ENDPOINTS | {
             "public.articles", "public.article", "public.issues", "public.issue",
             "public.section", "public.page", "public.feed", "public.sitemap",
-            "public.search", "public.person",
+            "public.search", "public.person", "public.tag", "public.issues_feed", "public.favicon",
         }:
             abort(404)
         return None

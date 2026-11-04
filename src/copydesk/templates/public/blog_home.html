@@ -1,7 +1,7 @@
 {% extends "layout/public.html" %}
-{% block title %}{{ site.name }}{% if site.tagline %}: {{ site.tagline }}{% endif %}{% endblock %}
+{% block title %}{{ site.name }}{% if site.tagline %}: {{ site.tagline }}{% endif %}{% if page.page > 1 %} · Page {{ page.page }}{% endif %}{% endblock %}
 {% block meta %}
-<meta property="og:type" content="website"><meta property="og:title" content="{{ site.name }}"><meta property="og:description" content="{{ site.description or site.tagline }}"><meta property="og:url" content="{{ external_url('public.home') }}"><link rel="canonical" href="{{ external_url('public.home') }}">
+<meta property="og:type" content="website"><meta property="og:title" content="{{ site.name }}"><meta property="og:description" content="{{ site.description or site.tagline }}"><meta property="og:url" content="{{ external_url('public.home', page=page.page) if page.page > 1 else external_url('public.home') }}"><link rel="canonical" href="{{ external_url('public.home', page=page.page) if page.page > 1 else external_url('public.home') }}">
 {% endblock %}
 {% block content %}
 <div class="container container-medium blog-home">
@@ -10,13 +10,20 @@
     {% if setting('appearance.home_intro') %}<div class="prose">{{ setting('appearance.home_intro')|markdown }}</div>{% elif site.description %}<p class="muted">{{ site.description }}</p>{% endif %}
     <div class="cluster">
       <a href="{{ url_for('public.feed') }}" class="button button-small">{{ icon('rss') }} Follow by RSS</a>
+      <a href="{{ url_for('public.articles') }}" class="button button-small">Browse all posts</a>
       {% if current_user.is_verified and can('publish') %}<form method="post" action="{{ url_for('write.new') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-primary button-small">{{ icon('pen') }} New post</button></form>{% endif %}
     </div>
+    {% if sections %}
+    <nav aria-label="Browse posts by section"><ul class="tag-list">
+      {% for section in sections %}<li><a href="{{ url_for('public.section', slug=section.slug) }}">{{ section.name }}</a></li>{% endfor %}
+    </ul></nav>
+    {% endif %}
   </header>
   {{ slot('home_after_hero') }}
   <section aria-labelledby="blog-posts-heading"><h2 id="blog-posts-heading" class="eyebrow">Latest posts</h2>
     {% if page.items %}<ul class="article-list">{% for item in page.items %}{{ ui.article_item(item) }}{% endfor %}</ul>{{ ui.pagination(page, 'public.home', 'Newer posts', 'Older posts') }}
-    {% else %}{{ ui.empty('Your first post starts here', 'Published posts will appear here, newest first.', icon_name='pen') }}{% endif %}
+    {% elif can('publish') %}{{ ui.empty('Your first post starts here', 'Use New post above to write a private draft, then publish when you are ready.', icon_name='pen') }}
+    {% else %}{{ ui.empty('No posts yet', 'New posts will appear here, newest first. Follow by RSS to keep up.', icon_name='pen') }}{% endif %}
   </section>
   {% if newsletter_enabled %}<section class="section card-callout"><h2>{{ setting('newsletter.signup_heading') }}</h2>{% include 'partials/subscribe_box.html' %}</section>{% endif %}
 </div>

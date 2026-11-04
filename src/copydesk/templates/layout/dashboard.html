@@ -63,7 +63,7 @@
     <div class="dash-sidebar-footer">
       <div class="dash-platform">{% include 'partials/brand.html' %}</div>
       <a href="{{ dashboard_link('public.home') }}"{{ preview_link() }}>{{ icon("external") }} View the site</a>
-      {% if can("submit") %}<a href="{{ dashboard_link('write.index') }}"{{ preview_link() }}>{{ icon("pen") }} My writing</a>{% endif %}
+      {% if can("submit") or (blog_mode and can("publish")) %}<a href="{{ dashboard_link('write.index') }}"{{ preview_link() }}>{{ icon("pen") }} {{ 'My posts' if blog_mode else 'My writing' }}</a>{% endif %}
       <a href="{{ dashboard_link('account.profile') }}"{{ preview_link() }}>{{ ui.avatar(current_user, "sm") }} {{ 'Sample editor' if design_preview else current_user.display_name }}</a>
       {% if not design_preview %}<button class="theme-toggle" type="button" data-theme-toggle hidden>{{ icon("sun") }} <span data-theme-label>Theme: automatic</span></button>{% endif %}
       <form method="post" action="{{ dashboard_link('auth.logout') }}">

@@ -56,9 +56,11 @@
       <h2>{{ locked_message }}</h2>
       <p class="muted">{{ ui.summary_text(article) }}</p>
       <div class="cluster cluster-center">
-        {% if not current_user.is_authenticated %}
+        {% if not interactive_available %}
+        <p>Account access is unavailable on this desktop-hosted website. Contact the publisher for access.</p>
+        {% elif not current_user.is_authenticated %}
         <a class="button button-primary" href="{{ url_for('auth.login', next=request.path) }}">Sign in</a>
-        <a class="button" href="{{ url_for('auth.join', next=request.path) }}">Create an account</a>
+        {% if registration_available %}<a class="button" href="{{ url_for('auth.join', next=request.path) }}">Create an account</a>{% endif %}
         {% elif article.visibility == "groups" %}
         <a class="button" href="{{ url_for('account.groups') }}">See your groups</a>
         {% endif %}
@@ -114,6 +116,15 @@
           {% for item in related %}{{ ui.article_item(item, show_section=False) }}{% endfor %}
         </ul>
       </section>
+      {% endif %}
+      {% if blog_mode and not preview %}
+      <nav class="section" aria-label="Post navigation">
+        <div class="cluster">
+          {% if newer_post %}<a class="button button-small" href="{{ url_for('public.article', slug=newer_post.slug) }}" rel="prev">{{ icon('arrow-left') }} Newer post: {{ newer_post.display_title }}</a>{% endif %}
+          {% if older_post %}<a class="button button-small" href="{{ url_for('public.article', slug=older_post.slug) }}" rel="next">Older post: {{ older_post.display_title }} {{ icon('arrow-right') }}</a>{% endif %}
+        </div>
+        <p><a href="{{ url_for('public.articles') }}">Browse all posts</a> · <a href="{{ url_for('public.feed') }}">Follow by RSS</a></p>
+      </nav>
       {% endif %}
     </footer>
   </div>
