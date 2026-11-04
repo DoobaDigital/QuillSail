@@ -369,6 +369,27 @@ def test_the_packaged_app_runs_commands_only_when_the_installed_command_asks(reg
     assert opened == [{'data_dir': None, 'instance_id': None, 'open_browser': True}]
 
 
+@pytest.mark.parametrize('attached', [True, False])
+def test_windows_console_fills_only_missing_streams(monkeypatch, attached):
+    from copydesk import desktop_ui
+
+    kernel32 = type('Kernel32', (), {'AttachConsole': staticmethod(lambda _process: attached)})
+    monkeypatch.setattr('ctypes.windll', type('Windll', (), {'kernel32': kernel32}), raising=False)
+    opened = []
+    monkeypatch.setattr('builtins.open', lambda path, *_args, **_kwargs: opened.append(path) or path)
+    redirected = object()
+    monkeypatch.setattr(sys, 'stdin', None)
+    monkeypatch.setattr(sys, 'stdout', redirected)
+    monkeypatch.setattr(sys, 'stderr', None)
+    desktop_ui.attach_windows_console()
+    # Output sent to a file or pipe must not be pulled back to the console.
+    assert sys.stdout is redirected
+    if attached:
+        assert opened == ['CONIN$', 'CONOUT$'] and sys.stdin == 'CONIN$' and sys.stderr == 'CONOUT$'
+    else:
+        assert opened == [] and sys.stdin is None and sys.stderr is None
+
+
 def test_packaged_serve_does_not_try_to_restart_itself(tmp_path, monkeypatch):
     import flask
 
