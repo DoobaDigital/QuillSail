@@ -985,12 +985,20 @@ def run(*, data_dir: Path | None = None, instance_id: str | None = None, open_br
 
 
 def attach_windows_console():
-    """The Windows app has no console of its own, so borrow the terminal that ran it."""
+    """The Windows app has no console of its own, so borrow the terminal that ran it.
+
+    A stream that already exists was redirected to a file or pipe, so it stays as it is.
+    """
     import ctypes
 
-    if ctypes.windll.kernel32.AttachConsole(-1):  # ATTACH_PARENT_PROCESS
+    if not ctypes.windll.kernel32.AttachConsole(-1):  # ATTACH_PARENT_PROCESS
+        return
+    if sys.stdin is None:
         sys.stdin = open("CONIN$", encoding="utf-8", errors="replace")  # noqa: SIM115
-        sys.stdout = sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)  # noqa: SIM115
+    if sys.stdout is None:
+        sys.stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)  # noqa: SIM115
+    if sys.stderr is None:
+        sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)  # noqa: SIM115
 
 
 def main():
