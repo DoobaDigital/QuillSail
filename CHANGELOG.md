@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Make competitions opt-in for Blog and Blog + newsletter in General settings, preserving existing competitions when disabled.
+- Hide unavailable account, writing and competition links on desktop public websites. Keep local sign-in and desktop access controls, and fix public tag pages, issue feeds and favicons.
+- Improve blog browsing with section links, search navigation, newer and older public posts, paginated homepage metadata and reader-facing empty states. Give the blog dashboard latest posts, your own private draft count, published posts first, and fewer newsletter prompts. Hide registration prompts when accounts are closed.
+
 ## 1.17.0 — Beta
 
 - Make the terminal a full alternative to the desktop window. The `quillsail` command from the terminal installer now runs the same commands as the Python package, with or without a desktop.

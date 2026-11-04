@@ -9,8 +9,9 @@
   <header class="page-intro">
     <h1>Search</h1>
     <form class="input-row" method="get" action="{{ url_for('public.search') }}" role="search">
-      <label class="visually-hidden" for="f-q">Search articles and issues</label>
-      <input id="f-q" type="search" name="q" value="{{ q }}" placeholder="Search articles and issues" autofocus>
+      {% set search_label = 'Search posts and issues' if blog_mode and newsletter_enabled else 'Search posts' if blog_mode else 'Search articles and issues' %}
+      <label class="visually-hidden" for="f-q">{{ search_label }}</label>
+      <input id="f-q" type="search" name="q" value="{{ q }}" placeholder="{{ search_label }}" autofocus>
       <button class="button button-primary" type="submit">{{ icon("search") }} Search</button>
     </form>
   </header>
@@ -31,14 +32,14 @@
     {% endif %}
 
     <section class="section">
-      <h2 class="eyebrow">{{ pluralize(page.total, "article") }} found</h2>
+      <h2 class="eyebrow">{{ pluralize(page.total, "post" if blog_mode else "article") }} found</h2>
       {% if page.items %}
       <ul class="article-list">
         {% for item in page.items %}{{ ui.article_item(item) }}{% endfor %}
       </ul>
       {{ ui.pagination(page, "public.search", q=q) }}
       {% else %}
-      <p class="muted">Nothing matched “{{ q }}”. Try a different word, or <a href="{{ url_for('public.articles') }}">browse all articles</a>.</p>
+      <p class="muted">Nothing matched “{{ q }}”. Try a different word, or <a href="{{ url_for('public.articles') }}">browse all {{ 'posts' if blog_mode else 'articles' }}</a>.</p>
       {% endif %}
     </section>
   {% endif %}

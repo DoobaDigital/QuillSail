@@ -2,6 +2,8 @@
 
 Run writing or project competitions with moderated entries, appointed judges, reader voting, deadlines and published results.
 
+Newsletter publications include competitions. For Blog or Blog + newsletter, first turn on **Settings → General → Enable competitions on blogs**. It is off by default. Turning it off hides the feature and blocks competition routes without deleting existing work. Public competitions need a server installation: the desktop public listener supports reading and subscriptions, while competition management stays on the local address.
+
 ## Create a competition
 
 Administrators can host competitions from **Dashboard → Competitions → New competition**. A group can also receive the **Host competitions** permission.

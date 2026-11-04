@@ -10,8 +10,10 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   {% endif %}
   {% block meta %}{% endblock %}
-  <link rel="alternate" type="application/atom+xml" title="{{ site.name }}: articles" href="{{ url_for('public.feed') }}">
-  <link rel="alternate" type="application/atom+xml" title="{{ site.name }}: issues" href="{{ url_for('public.issues_feed') }}">
+  {% if not launch_soon or current_user.is_authenticated %}
+  <link rel="alternate" type="application/atom+xml" title="{{ site.name }}: {{ 'posts' if blog_mode else 'articles' }}" href="{{ url_for('public.feed') }}">
+  {% if newsletter_enabled %}<link rel="alternate" type="application/atom+xml" title="{{ site.name }}: issues" href="{{ url_for('public.issues_feed') }}">{% endif %}
+  {% endif %}
   {% if request.blueprint != 'setup' and not dashboard_default and appearance_image('favicon') %}
   <link rel="icon" href="{{ appearance_image('favicon') }}">
   {% else %}

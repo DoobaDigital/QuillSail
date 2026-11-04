@@ -16,6 +16,7 @@ Administrators change these under **Dashboard → Settings**, and they're stored
 | Time zone | `site.timezone` | `America/New_York` | Dates are shown, and issues are scheduled, in this time zone. |
 | Footer text | `site.footer` | Blank | Optional. Appears at the bottom of every page. |
 | External newsletter website | `blog.newsletter_url` | Blank | Optional. The base URL of another QuillSail newsletter, such as https://acm.cse.sc.edu/newsletter. Public blog posts can be offered there for editorial review. Nothing is submitted automatically. |
+| Enable competitions on blogs | `blog.competitions_enabled` | Off | Optional for Blog and Blog + newsletter. Adds competition pages and management. Newsletter publications always include competitions. Desktop public websites support reading and subscriptions only; use a server installation for public competitions and accounts. Disabling preserves existing competitions. |
 | Accept business outreach | `business.enabled` | Off | Adds a For businesses form for workforce opportunities, projects, partnerships, and feedback. Contacts confirm their email before staff review requests in Business outreach. |
 
 ## Appearance

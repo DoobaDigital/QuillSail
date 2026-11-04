@@ -27,7 +27,7 @@
       <button class="button button-primary button-block" type="submit">Sign in</button>
     </form>
 
-    <p class="auth-alt">New here? <a href="{{ url_for('auth.join', next=request.values.get('next')) }}">Create an account</a></p>
+    {% if registration_available %}<p class="auth-alt">New here? <a href="{{ url_for('auth.join', next=request.values.get('next')) }}">Create an account</a></p>{% endif %}
   </div>
 </div>
 {% endblock %}

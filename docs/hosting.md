@@ -2,6 +2,8 @@
 
 Hosting is optional. Existing publications stay live after upgrading. The desktop dashboard always stays on your computer, even when readers use a public domain. For an always-running publication, use a [server installation](installation.md).
 
+The desktop public website supports reading posts and issues, searching, browsing sections and tags, following feeds, and email subscriptions. Sign-in, accounts, writing and competitions are available only at the local desktop address, so public navigation omits them. Open the dashboard from the desktop app to sign in and publish. Use a server installation when readers need accounts, community submissions or competitions on your public domain.
+
 ## Choose how to host
 
 Open **Domain** in the dashboard. Administrators can choose Cloudflare or another host. First-time browser setup offers the same choices, or **Not now, keep it on this computer**. Newly connected publications can start with a launching-soon page; existing installations do not change automatically.

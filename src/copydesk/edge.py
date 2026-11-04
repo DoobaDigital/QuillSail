@@ -103,7 +103,8 @@ def snapshot(payload):
 
     from copydesk import auth, launch
 
-    with current_app.test_request_context('/', base_url='https://' + data['hostname']):
+    with current_app.test_request_context('/', base_url='https://' + data['hostname'],
+                                          environ_overrides={'quillsail.listener': 'public'}):
         auth.load_user()
         html = render_template('public/launching.html', groups=[], signup_available=launch.signup_available())
     # Read package CSS, never fetch stylesheets or uploads from a remote URL.

@@ -10,6 +10,7 @@ from flask import Blueprint, abort, redirect, request, url_for
 from sqlalchemy import func, select
 
 from copydesk import permissions as perms
+from copydesk import publication
 from copydesk.auth import current_user
 from copydesk.db import db
 
@@ -59,6 +60,8 @@ def _guard():
         return redirect(url_for("auth.verify_notice"))
     if not can_use_dashboard(current_user):
         abort(403)
+    if request.endpoint.startswith("dash.competition") and not publication.has_competitions():
+        abort(404)
     return None
 
 
@@ -83,7 +86,17 @@ def nav_counts() -> dict[str, int]:
 
 @bp.context_processor
 def _dashboard_context():
-    return {"dash_nav": NAV, "dash_counts": nav_counts}
+    hidden = set()
+    if not publication.has_newsletter():
+        hidden.update({"issues", "subscribers"})
+    if not publication.has_competitions():
+        hidden.add("competitions")
+    nav = [
+        (heading, [(key, "Posts" if key == "articles" and publication.is_blog() else label, icon, perm)
+                   for key, label, icon, perm in links if key not in hidden])
+        for heading, links in NAV
+    ]
+    return {"dash_nav": nav, "dash_counts": nav_counts}
 
 
 from copydesk.views.dashboard import (  # noqa: E402,F401 - registers routes
