@@ -67,6 +67,12 @@ def desktop_update(check_only, app, channel, yes):
         return
     if installation is None:
         raise UpdateError("Use --app with the desktop application folder, or run quillsail update setup for a server.")
+    if getattr(sys, "frozen", False):
+        # Terminal instances run from the same app files that this update replaces.
+        from copydesk.instances import InstanceRegistry, running_url
+
+        if running := [row.id for row in InstanceRegistry().list() if running_url(row)]:
+            raise UpdateError(f"Stop these instances before updating: {', '.join(running)}. Use quillsail instance stop --all, or quit QuillSail.")
     if not yes:
         click.confirm("Download the verified update and replace the desktop app? Close all QuillSail windows first", abort=True)
     click.echo("Downloading and verifying the update…")
@@ -144,6 +150,20 @@ def update(ctx, check_only, app, desktop, profile, resume, channel, yes):
         click.echo(f"Recovery record: {state['transaction']}")
     except (UpdateError, InstallError, ConfigError, OSError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
+
+
+@update.command("channel")
+@click.argument("choice", required=False, type=click.Choice(["stable", "beta"]))
+def update_channel(choice):
+    """Show or choose the channel that desktop updates come from."""
+    from copydesk.updater import save_channel, saved_channel
+
+    try:
+        if choice:
+            save_channel(choice)
+    except (UpdateError, OSError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Update channel: {choice or saved_channel()}")
 
 
 @update.command("capabilities")

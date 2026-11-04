@@ -1,5 +1,8 @@
 """The `quillsail` command. `copydesk` is kept as an alias for existing installs.
 
+    quillsail instance        start a publication from this terminal, like the desktop app
+    quillsail instance ...    open, stop, list, create, delete and check publications
+    quillsail desktop         open the desktop window
     quillsail init            set up a new site (config file, database, first admin)
     quillsail serve           run a development server (with a background worker)
     quillsail worker          send email and do other background work
@@ -21,16 +24,22 @@ from __future__ import annotations
 
 import contextlib
 import csv
+import getpass
 import json
+import logging
 import os
 import secrets
 import signal
+import socket
+import subprocess
 import sys
+import time
 import webbrowser
 from datetime import date, datetime
 from pathlib import Path
 from string import Template
 from threading import Event
+from urllib.parse import urlsplit
 
 import click
 
@@ -39,6 +48,14 @@ from copydesk.config import ConfigError, load_config
 from copydesk.update_commands import update
 
 TEMPLATE = Path(__file__).parent / "config_template.toml"
+NO_INSTANCES = "There are no instances yet. Start one with: quillsail instance --name 'My publication'"
+HELP = """QuillSail: blogs and newsletters where readers write.
+
+Start with `quillsail instance`. It runs your publication from this terminal and gives you
+a link to its dashboard. `quillsail desktop` opens the same publications in a window.
+
+Run `quillsail COMMAND --help` for details. `copydesk` is kept as an alias for existing installs.
+"""
 
 
 class Context:
@@ -82,13 +99,16 @@ class Context:
 pass_context = click.make_pass_decorator(Context)
 
 
-@click.group(help=__doc__.split("\n\n")[0])
+@click.group(help=HELP, invoke_without_command=True)
 @click.option("--config", "config_path", envvar="COPYDESK_CONFIG", type=click.Path(dir_okay=False),
               help="Path to copydesk.toml (default: ./copydesk.toml, then /etc/copydesk/copydesk.toml).")
 @click.option("--instance", "instance_id", help="Use a named local instance (see `quillsail instance list`).")
 @click.version_option(__version__, prog_name="QuillSail")
 @click.pass_context
 def main(ctx: click.Context, config_path: str | None, instance_id: str | None) -> None:
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+        ctx.exit()
     if instance_id and config_path and ctx.get_parameter_source("config_path") == click.core.ParameterSource.COMMANDLINE:
         raise click.UsageError("Choose --instance or --config, rather than both.")
     if instance_id and ctx.invoked_subcommand in {"init", "update", "instance"}:
@@ -202,17 +222,40 @@ def init(directory, site_name, mode, base_url, database_url, admin_email, admin_
 
 @main.command()
 @click.option("--data-dir", type=click.Path(file_okay=False, path_type=Path), help="Use a separate desktop publication folder.")
+@click.option("--no-browser", is_flag=True, help="Open the window without opening the browser.")
 @pass_context
-def desktop(ctx, data_dir):
-    """Open the desktop launcher and start a local publication in your browser."""
+def desktop(ctx, data_dir, no_browser):
+    """Open the desktop window and start a local publication in your browser."""
     from copydesk.desktop_ui import run
 
+    if data_dir and ctx.instance_id:
+        raise click.UsageError("Choose --data-dir or --instance, rather than both.")
+    if not has_display():
+        raise click.ClickException("The desktop window needs a graphical session, and this terminal doesn't have one. To run QuillSail from here, use: quillsail instance")
     try:
-        if data_dir and ctx.instance_id:
-            raise click.UsageError("Choose --data-dir or --instance, rather than both.")
-        run(data_dir=data_dir, instance_id=ctx.instance_id)
-    except (ConfigError, OSError, RuntimeError) as exc:
+        if not getattr(sys, "frozen", False):
+            run(data_dir=data_dir, instance_id=ctx.instance_id, open_browser=not no_browser)
+            return
+        if ctx.instance_id:
+            from copydesk.instances import InstanceRegistry
+
+            InstanceRegistry().get(ctx.instance_id)
+        arguments = (["--data-dir", str(data_dir.resolve())] if data_dir else []) + (["--instance", ctx.instance_id] if ctx.instance_id else []) + (["--no-browser"] if no_browser else [])
+        open_packaged_window(arguments)
+    except (ConfigError, OSError, RuntimeError, subprocess.CalledProcessError) as exc:
         raise click.ClickException(str(exc)) from exc
+
+
+def open_packaged_window(arguments: list[str]) -> None:
+    """Start the app on its own, so closing this terminal doesn't stop its publications."""
+    if sys.platform == "darwin":
+        from copydesk.updater import installation_path
+
+        app = str(installation_path())
+        subprocess.run(["open", "-a", app, "--args", *arguments] if arguments else ["open", app], check=True, env=child_environment())
+    else:
+        subprocess.Popen([sys.executable, *arguments], env=child_environment(), stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **detached())
 
 
 @main.command("quit")
@@ -223,21 +266,236 @@ def quit_command():
 
     folder = default_registry_dir()
     if send_command(folder, "quit") != "ok":
-        raise click.ClickException("QuillSail isn't open.")
+        raise click.ClickException("QuillSail isn't open. To stop instances started in a terminal, run: quillsail instance stop --all")
     click.echo("Finishing background work and stopping publications…")
     if not wait_until_closed(folder, timeout=120):
         raise click.ClickException("QuillSail is still stopping. Check its window, then try again.")
     click.echo("QuillSail has quit. Your content is saved.")
 
 
-@main.group("instance")
-def instance_commands():
-    """Create, list, delete and run independent local publications."""
+# Ways to reach and start an instance. The launcher window and these commands share them.
+
+
+def own_command() -> list[str]:
+    """How to run this same program again, from a packaged app or a Python environment."""
+    return [sys.executable, "cli"] if getattr(sys, "frozen", False) else [sys.executable, "-m", "copydesk"]
+
+
+def detached() -> dict:
+    """Options that let a new process outlive this terminal."""
+    if sys.platform == "win32":
+        return {"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def child_environment() -> dict | None:
+    """A packaged app's own settings must not reach programs it starts, including itself."""
+    if getattr(sys, "frozen", False):
+        from copydesk.update_install import clean_environment
+
+        return clean_environment()
+    return None
+
+
+def has_display() -> bool:
+    return not sys.platform.startswith("linux") or bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def open_in_browser(url: str) -> bool:
+    # Over SSH a browser would open on the wrong computer, or take over this terminal.
+    if os.environ.get("SSH_CONNECTION") or not has_display():
+        return False
+    environment = child_environment()
+    if environment is None:
+        return webbrowser.open(url)
+    # The webbrowser module always passes on this process's environment.
+    original = dict(os.environ)
+    os.environ.clear()
+    os.environ.update(environment)
+    try:
+        return webbrowser.open(url)
+    finally:
+        os.environ.clear()
+        os.environ.update(original)
+
+
+@contextlib.contextmanager
+def instance_errors():
+    try:
+        yield
+    except (ConfigError, OSError, RuntimeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+def find_instance(registry, name: str):
+    """Accept an instance's short id or the name it was given."""
+    wanted = name.strip().casefold()
+    return next((row for row in registry.list() if row.id == name or row.name.casefold() == wanted), None) or registry.get(name)
+
+
+def pick_instance(registry, name: str | None = None):
+    """The instance someone means: the one they named, the only one running, or their first."""
+    from copydesk.instances import running_url
+
+    if name:
+        return find_instance(registry, name)
+    rows = registry.list()
+    running = [row for row in rows if running_url(row)]
+    if len(running) > 1:
+        raise click.ClickException(f"Several instances are running: {', '.join(row.id for row in running)}. Name the one you mean.")
+    if running or rows:
+        return (running or rows)[0]
+    raise ConfigError(NO_INSTANCES)
+
+
+def instance_to_start(registry, name: str | None, data_dir: Path | None):
+    """Find or create what `quillsail instance` should start. A new name creates a new instance."""
+    rows = registry.list()
+    if data_dir:
+        folder = data_dir.expanduser().resolve()
+        known = next((row for row in rows if row.root == folder), None)
+        return known or registry.add(name or folder.name, folder, existing=(folder / "desktop.json").exists())
+    if name:
+        wanted = name.strip().casefold()
+        known = next((row for row in rows if row.id == name or row.name.casefold() == wanted), None)
+        return known or registry.add(name)
+    if rows:
+        return rows[0]
+    raise ConfigError(NO_INSTANCES)
+
+
+def share_link(item, url: str, link: str, *, no_browser: bool) -> None:
+    """Print how to reach an instance, and open it here when that's possible."""
+    from copydesk.desktop import TICKET_SECONDS
+
+    click.echo(f"{item.id}: {url}\nOpen setup/dashboard: {link}")
+    if not no_browser and open_in_browser(link):
+        return
+    if os.environ.get("SSH_CONNECTION"):
+        port = urlsplit(url).port
+        click.echo(f"To open it from your own computer, first run this there: ssh -L {port}:127.0.0.1:{port} {getpass.getuser()}@{socket.gethostname()}")
+    click.echo(f"This link works once, for {TICKET_SECONDS} seconds. For a new one, run: quillsail instance open {item.id}")
+
+
+def run_instances(registry, selected, *, no_browser, no_worker, port) -> None:
+    """Run instances in this terminal until Ctrl+C, the terminal closes or they're asked to stop."""
+    from copydesk.desktop import LOG_NAME, DesktopRuntime, open_log
+    from copydesk.desktop_ui import saved_appearance
+    from copydesk.instances import request_link, running_url
+
+    runtimes = []
+    stopped = Event()
+    numbers = [getattr(signal, name) for name in ("SIGTERM", "SIGHUP") if hasattr(signal, name)]
+    # Someone who ran this under nohup has asked for it to survive a closing terminal.
+    previous = {number: signal.signal(number, lambda *_args: stopped.set()) for number in numbers
+                if signal.getsignal(number) != signal.SIG_IGN}
+    registry.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    log_handler = open_log(registry.root / LOG_NAME)
+    try:
+        for item in selected:
+            if url := running_url(item):
+                click.echo(f"{item.id} is already running.")
+                share_link(item, url, request_link(item), no_browser=no_browser)
+                continue
+            runtime = DesktopRuntime(item.root)
+            runtime.accepts_stop = True
+            runtime.appearance = saved_appearance(registry.root)
+            runtimes.append(runtime)
+            runtime.start(with_worker=not no_worker, port=port)
+            share_link(item, runtime.url, runtime.launch_url(), no_browser=no_browser)
+        if runtimes:
+            click.echo("Press Ctrl+C to stop. Your content stays saved.")
+            while runtimes and not stopped.wait(.5):
+                for runtime in [row for row in runtimes if row.stop_requested.is_set()]:
+                    runtime.stop()
+                    runtimes.remove(runtime)
+    except KeyboardInterrupt:
+        pass
+    except Exception:
+        # A background instance has nowhere else to report this.
+        logging.getLogger("copydesk.desktop").exception("An instance could not keep running.")
+        raise
+    finally:
+        for runtime in reversed(runtimes):
+            runtime.stop()
+        for number, handler in previous.items():
+            signal.signal(number, handler)
+        logging.getLogger().removeHandler(log_handler)
+        log_handler.close()
+
+
+def run_in_background(registry, selected, *, no_browser, no_worker, port) -> None:
+    """Start a separate process that outlives this terminal, and wait until it's ready."""
+    from copydesk.instances import request_link, running_url
+
+    waiting = [item for item in selected if not running_url(item)]
+    if waiting:
+        command = [*own_command(), "instance", "run", *(item.id for item in waiting), "--no-browser"]
+        if no_worker:
+            command.append("--no-worker")
+        if port:
+            command += ["--port", str(port)]
+        registry.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        # Its output holds launch links, so it's discarded. Problems go to the log.
+        process = subprocess.Popen(command, cwd=registry.root, env=child_environment(), stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **detached())
+        deadline = time.monotonic() + 120
+        while not all(running_url(item) for item in waiting):
+            if process.poll() is not None or time.monotonic() > deadline:
+                raise click.ClickException("QuillSail couldn't start in the background. See why with: quillsail instance logs")
+            time.sleep(.25)
+    for item in selected:
+        share_link(item, running_url(item), request_link(item), no_browser=no_browser)
+    click.echo("Running in the background. Stop it with: quillsail instance stop")
+
+
+def start_instances(registry, selected, *, background, no_browser, no_worker, port) -> None:
+    if port and len(selected) > 1:
+        raise click.UsageError("--port works with one instance at a time.")
+    start = run_in_background if background else run_instances
+    start(registry, selected, no_browser=no_browser, no_worker=no_worker, port=port)
+
+
+def start_options(command):
+    """The options shared by `quillsail instance` and `quillsail instance run`."""
+    for option in reversed((
+        click.option("--port", type=click.IntRange(1, 65535), help="Use this local port from now on. Default: the last port used, or any free one."),
+        click.option("--background", is_flag=True, help="Keep running after this terminal closes. Stop it with `quillsail instance stop`."),
+        click.option("--no-browser", is_flag=True, help="Print local setup/dashboard links without opening a browser."),
+        click.option("--no-worker", is_flag=True, help="Run websites without processing background jobs."),
+    )):
+        command = option(command)
+    return command
+
+
+@main.group("instance", invoke_without_command=True)
+@click.option("--name", "-n", help="Start the instance with this name, creating it if it's new. Default: your first instance.")
+@click.option("--data-dir", type=click.Path(file_okay=False, path_type=Path), help="Start the publication saved in this folder, or create one in this empty folder.")
+@start_options
+@click.pass_context
+def instance_commands(ctx, name, data_dir, port, background, no_browser, no_worker):
+    """Start a publication from this terminal, as opening the desktop app does.
+
+    With no command, this starts your first publication, creating it the first time. It
+    prints a link to the setup form or dashboard, and opens your browser when it can.
+    The commands below do everything else the desktop window does.
+    """
+    if ctx.invoked_subcommand:
+        if name or data_dir or port or background or no_browser or no_worker:
+            raise click.UsageError(f"These options start an instance, so they can't be used with `{ctx.invoked_subcommand}`.")
+        return
+    from copydesk.instances import InstanceRegistry
+
+    with instance_errors():
+        registry = InstanceRegistry()
+        start_instances(registry, [instance_to_start(registry, name, data_dir)], background=background,
+                        no_browser=no_browser, no_worker=no_worker, port=port)
 
 
 @instance_commands.command("list")
 @click.option("--json", "as_json", is_flag=True, help="Print names, paths and running addresses as JSON.")
 def instance_list(as_json):
+    """List your instances and show which are running."""
     from copydesk.instances import InstanceRegistry, running_url
 
     try:
@@ -285,16 +543,19 @@ def instance_add(name, data_dir):
 @click.option("--delete-data", is_flag=True, help="Permanently delete the publication folder and all its contents.")
 @click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
 def instance_delete(name, delete_data, yes):
-    """Remove a stopped instance, including default. Keep files unless --delete-data is used."""
-    from copydesk.instances import InstanceRegistry
+    """Stop and remove an instance, including default. Keep files unless --delete-data is used."""
+    from copydesk.instances import InstanceRegistry, request_stop, running_url, wait_until_stopped
 
     try:
         registry = InstanceRegistry()
-        item = registry.get(name)
+        item = find_instance(registry, name)
         action = "Permanently delete all publication files in" if delete_data else "Remove from the instance list, keeping files in"
+        running = bool(running_url(item))
         if not yes:
-            click.confirm(f"{action} {item.root}?", abort=True)
-        registry.delete(name, delete_data=delete_data)
+            click.confirm(f"{'Stop it and ' + action[0].lower() + action[1:] if running else action} {item.root}?", abort=True)
+        if running and request_stop(item) and not wait_until_stopped(item):
+            raise click.ClickException(f"{item.id} is still stopping. Nothing was deleted. Try again in a moment.")
+        registry.delete(item.id, delete_data=delete_data)
     except (ConfigError, OSError, RuntimeError) as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(f"Deleted instance {item.id}. " + ("Publication files permanently deleted." if delete_data else f"Files kept in {item.root}."))
@@ -302,44 +563,163 @@ def instance_delete(name, delete_data, yes):
 
 @instance_commands.command("run")
 @click.argument("names", nargs=-1, required=True)
-@click.option("--no-browser", is_flag=True, help="Print local setup/dashboard links without opening a browser.")
-@click.option("--no-worker", is_flag=True, help="Run websites without processing background jobs.")
-def instance_run(names, no_browser, no_worker):
+@start_options
+def instance_run(names, port, background, no_browser, no_worker):
     """Run one or more instances until Ctrl+C; each gets an available local port."""
-    from copydesk.desktop import DesktopRuntime
-    from copydesk.instances import InstanceRegistry, running_url
+    from copydesk.instances import InstanceRegistry
 
-    runtimes = []
-    stopped = Event()
-    previous = signal.getsignal(signal.SIGTERM)
-    signal.signal(signal.SIGTERM, lambda *_args: stopped.set())
-    try:
+    with instance_errors():
         registry = InstanceRegistry()
-        selected = [registry.get(name) for name in dict.fromkeys(names)]
+        selected = [find_instance(registry, name) for name in dict.fromkeys(names)]
+        start_instances(registry, selected, background=background, no_browser=no_browser, no_worker=no_worker, port=port)
+
+
+@instance_commands.command("open")
+@click.argument("name", required=False)
+@click.option("--public", is_flag=True, help="Open the public address instead of the dashboard.")
+@click.option("--no-browser", is_flag=True, help="Print the link without opening a browser.")
+def instance_open(name, public, no_browser):
+    """Get a new link to a running instance's dashboard, and open it when possible."""
+    from copydesk.instances import InstanceRegistry, request_link, running_status
+
+    with instance_errors():
+        item = pick_instance(InstanceRegistry(), name)
+        status = running_status(item)
+        if not public:
+            share_link(item, status.get("url", ""), request_link(item), no_browser=no_browser)
+            return
+        if not status:
+            raise click.ClickException(f"{item.id} isn't running. Start it with: quillsail instance run {item.id}")
+        if not status.get("public_url"):
+            raise click.ClickException(f"{item.id} has no public address yet. Connect one in the dashboard, under Launch.")
+        click.echo(status["public_url"])
+        if not no_browser:
+            open_in_browser(status["public_url"])
+
+
+@instance_commands.command("stop")
+@click.argument("names", nargs=-1)
+@click.option("--all", "stop_all", is_flag=True, help="Stop every running instance.")
+def instance_stop(names, stop_all):
+    """Finish background work and stop instances. Their content stays saved."""
+    from copydesk.instances import InstanceRegistry, request_stop, running_url, wait_until_stopped
+
+    with instance_errors():
+        registry = InstanceRegistry()
+        if stop_all:
+            selected = [row for row in registry.list() if running_url(row)]
+        elif names:
+            selected = [find_instance(registry, name) for name in dict.fromkeys(names)]
+        else:
+            selected = [pick_instance(registry)]
+        if not selected:
+            click.echo("Nothing is running.")
+        problems, stopping = [], []
         for item in selected:
-            url = running_url(item)
-            if url:
-                click.echo(f"{item.id} is already running: {url}/dashboard/")
-                continue
-            runtime = DesktopRuntime(item.root)
-            runtimes.append(runtime)
-            runtime.start(with_worker=not no_worker)
-            launch = runtime.launch_url()
-            click.echo(f"{item.id}: {runtime.url}\nOpen setup/dashboard: {launch}")
-            if not no_browser:
-                webbrowser.open(launch)
-        if runtimes:
-            click.echo("Press Ctrl+C to stop these instances. Their content stays saved.")
-            while not stopped.wait(.5):
-                pass
-    except KeyboardInterrupt:
-        pass
-    except (ConfigError, OSError, RuntimeError) as exc:
-        raise click.ClickException(str(exc)) from exc
-    finally:
-        for runtime in reversed(runtimes):
-            runtime.stop()
-        signal.signal(signal.SIGTERM, previous)
+            try:
+                if request_stop(item):
+                    stopping.append(item)
+                else:
+                    click.echo(f"{item.id} isn't running.")
+            except ConfigError as exc:
+                problems.append(f"{item.id}: {exc}")
+        if stopping:
+            click.echo("Finishing background work and stopping…")
+        for item in stopping:
+            if wait_until_stopped(item):
+                click.echo(f"Stopped {item.id}. Its content is saved.")
+            else:
+                problems.append(f"{item.id} is still stopping. Check it again in a moment.")
+        if problems:
+            raise click.ClickException("\n".join(problems))
+
+
+@instance_commands.command("status")
+@click.argument("name", required=False)
+@click.option("--json", "as_json", is_flag=True, help="Print the details as JSON.")
+def instance_status(name, as_json):
+    """Show whether an instance is running, its addresses and its data folder."""
+    from copydesk.instances import InstanceRegistry, running_status
+
+    with instance_errors():
+        item = pick_instance(InstanceRegistry(), name)
+        status = running_status(item)
+    details = {"id": item.id, "name": item.name, "directory": str(item.root), "running": bool(status),
+               "url": status.get("url", ""), "version": status.get("version", ""),
+               "public_url": status.get("public_url", ""), "public_status": status.get("public_status", "")}
+    if as_json:
+        click.echo(json.dumps(details, indent=2))
+        return
+    click.echo(f"{item.name} ({item.id})")
+    click.echo(f"  Status:  {'Running at ' + details['url'] if status else 'Stopped. Your content is saved.'}")
+    if details["public_url"]:
+        click.echo(f"  Public:  {details['public_url']} · {details['public_status']}")
+    if details["version"]:
+        click.echo(f"  Version: {details['version']}")
+    click.echo(f"  Folder:  {item.root}")
+
+
+@instance_commands.command("logs")
+@click.option("--lines", "-n", type=click.IntRange(min=0), default=50, show_default=True, help="How many recent lines to show.")
+@click.option("--follow", "-f", is_flag=True, help="Keep showing new lines until Ctrl+C.")
+def instance_logs(lines, follow):
+    """Show the log shared by the desktop app and terminal instances."""
+    from copydesk.desktop import LOG_NAME
+    from copydesk.instances import default_registry_dir
+
+    logfile = default_registry_dir() / LOG_NAME
+    position = 0
+    if logfile.exists():
+        content = logfile.read_text(encoding="utf-8", errors="replace")
+        position = len(content.encode("utf-8", errors="replace"))
+        for line in content.splitlines()[-lines:] if lines else []:
+            click.echo(line)
+    elif not follow:
+        click.echo("Nothing has been logged yet.")
+    if not follow:
+        return
+    with contextlib.suppress(KeyboardInterrupt):
+        while True:
+            with contextlib.suppress(OSError):
+                # The log starts over when it grows large.
+                position = 0 if logfile.stat().st_size < position else position
+                with logfile.open("rb") as stream:
+                    stream.seek(position)
+                    chunk = stream.read()
+                    position = stream.tell()
+                if chunk:
+                    click.echo(chunk.decode("utf-8", errors="replace"), nl=False)
+            time.sleep(.5)
+
+
+@instance_commands.command("folder")
+@click.argument("name", required=False)
+@click.option("--open", "open_folder", is_flag=True, help="Also open the folder in a file window.")
+def instance_folder(name, open_folder):
+    """Print an instance's data folder. Quit or stop it before backing this up."""
+    from copydesk.instances import InstanceRegistry
+
+    with instance_errors():
+        item = pick_instance(InstanceRegistry(), name)
+    click.echo(item.root)
+    if open_folder and click.launch(str(item.root)) != 0:
+        raise click.ClickException("A file window couldn't be opened here. The folder is printed above.")
+
+
+@instance_commands.command("appearance")
+@click.argument("choice", required=False, type=click.Choice(["light", "dark", "auto"]))
+def instance_appearance(choice):
+    """Show or choose light, dark or automatic for the desktop window and browser setup."""
+    from copydesk.desktop_ui import save_appearance, saved_appearance
+    from copydesk.instances import default_registry_dir
+
+    folder = default_registry_dir()
+    with instance_errors():
+        if choice:
+            save_appearance(folder, choice)
+    click.echo(f"Appearance: {choice or saved_appearance(folder)}")
+    if choice:
+        click.echo("This applies the next time an instance or the desktop window starts.")
 
 
 @main.command()
@@ -351,7 +731,8 @@ def instance_run(names, no_browser, no_worker):
 def serve(ctx: Context, host, port, no_worker, no_reload):
     """Run a development server. For production, use gunicorn (see docs/installation.md)."""
     app = ctx.app()
-    reloading = not no_reload
+    # A packaged app has no source files to watch, and can't restart itself this way.
+    reloading = not no_reload and not getattr(sys, "frozen", False)
     if not no_worker and (not reloading or os.environ.get("WERKZEUG_RUN_MAIN") == "true"):
         from copydesk.jobs import start_background_worker
 

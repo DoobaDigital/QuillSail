@@ -20,7 +20,7 @@ The installer downloads the app for your computer, checks it against QuillSail's
 
 ## 2. Create your publication
 
-Open QuillSail from your Applications folder, Start menu or app menu, or run `quillsail`. The launcher starts a private publication and opens a short setup form in your browser:
+Open QuillSail from your Applications folder, Start menu or app menu, or run `quillsail desktop`. To skip the window, run `quillsail instance` instead. Either way, QuillSail starts a private publication and opens a short setup form in your browser:
 
 1. **Publication name**: what readers will see, such as *The Tech Stack*. You can change it later.
 2. **Publication type**: Newsletter, Blog, or Blog + newsletter. Pick Blog + newsletter to try everything.

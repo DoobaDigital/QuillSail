@@ -6,16 +6,21 @@ import argparse
 import faulthandler
 import json
 import logging
-import os
 import re
 import sys
 import tempfile
 import threading
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from copydesk import __version__
-from copydesk.desktop import DesktopRuntime, default_data_dir, smoke_test, write_private
+from copydesk.desktop import (
+    LOG_NAME,
+    DesktopRuntime,
+    default_data_dir,
+    open_log,
+    smoke_test,
+    write_private,
+)
 
 log = logging.getLogger("copydesk.desktop")
 
@@ -151,15 +156,8 @@ def run(*, data_dir: Path | None = None, instance_id: str | None = None, open_br
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     # The launcher outlives individual publications, including deleted ones.
     registry.root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    logfile = registry.root / "quillsail.log"
-    # Create with private permissions before logging opens the file.
-    descriptor = os.open(logfile, os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600)
-    os.close(descriptor)
-    os.chmod(logfile, 0o600)
-    handler = RotatingFileHandler(logfile, maxBytes=1_000_000, backupCount=2, encoding="utf-8")
-    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
-    logging.getLogger().addHandler(handler)
-    logging.getLogger().setLevel(logging.INFO)
+    logfile = registry.root / LOG_NAME
+    handler = open_log(logfile)
 
     class Task(QObject):
         finished = Signal(object)
@@ -986,7 +984,29 @@ def run(*, data_dir: Path | None = None, instance_id: str | None = None, open_br
             guard.__exit__(None, None, None)
 
 
+def attach_windows_console():
+    """The Windows app has no console of its own, so borrow the terminal that ran it."""
+    import ctypes
+
+    if ctypes.windll.kernel32.AttachConsole(-1):  # ATTACH_PARENT_PROCESS
+        sys.stdin = open("CONIN$", encoding="utf-8", errors="replace")  # noqa: SIM115
+        sys.stdout = sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)  # noqa: SIM115
+
+
 def main():
+    if getattr(sys, "frozen", False):
+        from copydesk.installed_command import refresh_installed_command
+
+        refresh_installed_command()
+    # The installed `quillsail` command adds "cli". Opening the app from a menu or
+    # the Finder passes nothing, which opens the window below.
+    if sys.argv[1:2] == ["cli"]:
+        if sys.platform == "win32":
+            attach_windows_console()
+        from copydesk.cli import main as cli_main
+
+        cli_main(sys.argv[2:], prog_name="quillsail")
+        return
     parser = argparse.ArgumentParser(description="Open QuillSail on your computer.")
     parser.add_argument("--data-dir", type=Path, help="Use a separate desktop publication folder.")
     parser.add_argument("--instance", help="Open a named local publication from the shared instance list.")

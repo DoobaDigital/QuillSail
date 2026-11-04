@@ -3,7 +3,7 @@
 #
 #   curl -fsSL __QUILLSAIL_SITE_URL__/install.sh | bash
 #
-# Installs the QuillSail desktop app and a `quillsail` command that opens it.
+# Installs the QuillSail desktop app and a `quillsail` command for your terminal.
 # Each download is checked against the size and SHA-256 checksum listed in
 # QuillSail's signed release feed before anything is installed. Nothing here
 # needs administrator rights, and your publications are never touched.
@@ -66,7 +66,7 @@ fail() {
 
 usage() {
   cat <<'HELP'
-Install the QuillSail desktop app and a `quillsail` command that opens it.
+Install the QuillSail desktop app and a `quillsail` command for your terminal.
 
   curl -fsSL __QUILLSAIL_SITE_URL__/install.sh | bash -s -- [options]
 
@@ -186,7 +186,7 @@ check_requirements() {
     need tar "This installer needs tar."
     check_glibc
     if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
-      warn "No desktop session was found. The QuillSail app needs one. To run QuillSail on a server, see __QUILLSAIL_SITE_URL__/download"
+      warn "No desktop session was found, so the desktop window won't open here. Run QuillSail from this terminal with: quillsail instance"
     fi
   fi
   case "$SITE" in
@@ -286,7 +286,7 @@ installed_version() {
 
 check_running() {
   if command -v pgrep >/dev/null 2>&1 && pgrep -f "$EXECUTABLE" >/dev/null 2>&1; then
-    fail "QuillSail is open. Choose Quit QuillSail in the launcher, then run the installer again."
+    fail "QuillSail is running. Run quillsail instance stop --all and quillsail quit, then run the installer again."
   fi
 }
 
@@ -390,22 +390,10 @@ write_command() {
   new_command="$COMMAND.new-$$"
   {
     printf '#!/bin/sh\n'
-    printf '%s Opens the QuillSail desktop app.\n' "$MARKER_LINE"
+    printf '%s Runs the quillsail command from the app.\n' "$MARKER_LINE"
     printf '# Remove it with: curl -fsSL %s/install.sh | bash -s -- --uninstall\n' "$SITE"
-    printf "app='%s'\n" "$APP"
     printf "executable='%s'\n" "$EXECUTABLE"
-    printf '%s\n' 'for argument in "$@"; do'
-    printf '%s\n' '  case "$argument" in'
-    printf '%s\n' '    -h|--help|--version|--check-updates|--update|--smoke-test|--smoke-test-gui) exec "$executable" "$@" ;;'
-    printf '%s\n' '  esac'
-    printf '%s\n' 'done'
-    if [ "$OS" = macos ]; then
-      printf '%s\n' 'if [ "$#" -eq 0 ]; then exec open "$app"; fi'
-      printf '%s\n' 'exec open -a "$app" --args "$@"'
-    else
-      printf '%s\n' '# Keep QuillSail running after this terminal closes.'
-      printf '%s\n' 'nohup "$executable" "$@" >/dev/null 2>&1 </dev/null &'
-    fi
+    printf '%s\n' 'exec "$executable" cli "$@"'
   } > "$new_command"
   chmod 755 "$new_command"
   mv "$new_command" "$COMMAND"
@@ -477,12 +465,16 @@ summarize() {
   say ""
   if [ -n "$PROFILE_CHANGED" ]; then
     say "Added $BIN_DIR to your PATH in $PROFILE_CHANGED."
-    say "Open a new terminal window, then run: quillsail"
+    say "Open a new terminal window, then start your publication: quillsail instance"
   elif [ "$COMMAND_STATUS" = written ]; then
     case ":$PATH:" in
-      *":$BIN_DIR:"*) say "Open QuillSail by running: quillsail" ;;
-      *) say "Add $BIN_DIR to your PATH to run quillsail, or open: $COMMAND" ;;
+      *":$BIN_DIR:"*) say "Start your publication: quillsail instance" ;;
+      *) say "Add $BIN_DIR to your PATH to run quillsail, or use: $COMMAND instance" ;;
     esac
+  fi
+  if [ "$COMMAND_STATUS" = written ]; then
+    say "Open the desktop window: quillsail desktop"
+    say "See every command: quillsail"
   fi
   if [ "$OS" = macos ]; then
     say "You can also open QuillSail from your Applications folder."

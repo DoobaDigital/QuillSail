@@ -2,16 +2,21 @@
 
 Every command starts with `quillsail`. The older `copydesk` name still works as an alias. Commands that work on a publication find its configuration from `--config`, then the `COPYDESK_CONFIG` environment variable, then `./copydesk.toml`, then `/etc/copydesk/copydesk.toml`. Use `--instance NAME` instead for a named local publication.
 
-This page covers the full command-line tool that comes with the Python package and server installations. The `quillsail` command added by the [terminal installer](../install-script.md) opens the desktop app instead.
+This page covers the full command-line tool. It comes with the Python package, server installations and the [terminal installer](../install-script.md). Without a command, `quillsail` prints this list.
 
 Run `quillsail COMMAND --help` for the same details in your terminal.
 
 ## Options for every command
 
-The `quillsail` command. `copydesk` is kept as an alias for existing installs.
+QuillSail: blogs and newsletters where readers write.
+
+Start with `quillsail instance`. It runs your publication from this terminal and gives you
+a link to its dashboard. `quillsail desktop` opens the same publications in a window.
+
+Run `quillsail COMMAND --help` for details. `copydesk` is kept as an alias for existing installs.
 
 ```text
-quillsail [OPTIONS] COMMAND [ARGS]...
+quillsail [OPTIONS] [COMMAND] [ARGS]...
 ```
 
 | Argument or option | What it does |
@@ -48,7 +53,7 @@ quillsail demo [OPTIONS]
 
 ## `quillsail desktop`
 
-Open the desktop launcher and start a local publication in your browser.
+Open the desktop window and start a local publication in your browser.
 
 ```text
 quillsail desktop [OPTIONS]
@@ -57,6 +62,7 @@ quillsail desktop [OPTIONS]
 | Argument or option | What it does |
 | --- | --- |
 | `--data-dir DIRECTORY` | Use a separate desktop publication folder. |
+| `--no-browser` | Open the window without opening the browser. |
 
 ## `quillsail export`
 
@@ -136,11 +142,24 @@ quillsail init [OPTIONS]
 
 ## `quillsail instance`
 
-Create, list, delete and run independent local publications.
+Start a publication from this terminal, as opening the desktop app does.
+
+With no command, this starts your first publication, creating it the first time. It
+prints a link to the setup form or dashboard, and opens your browser when it can.
+The commands below do everything else the desktop window does.
 
 ```text
-quillsail instance [OPTIONS] COMMAND [ARGS]...
+quillsail instance [OPTIONS] [COMMAND] [ARGS]...
 ```
+
+| Argument or option | What it does |
+| --- | --- |
+| `-n, --name TEXT` | Start the instance with this name, creating it if it's new. Default: your first instance. |
+| `--data-dir DIRECTORY` | Start the publication saved in this folder, or create one in this empty folder. |
+| `--port INTEGER RANGE` | Use this local port from now on. Default: the last port used, or any free one. [1<=x<=65535] |
+| `--background` | Keep running after this terminal closes. Stop it with `quillsail instance stop`. |
+| `--no-browser` | Print local setup/dashboard links without opening a browser. |
+| `--no-worker` | Run websites without processing background jobs. |
 
 ### `quillsail instance add`
 
@@ -154,6 +173,18 @@ quillsail instance add [OPTIONS] NAME DATA_DIR
 | --- | --- |
 | `NAME` | Required. |
 | `DATA_DIR` | Required. |
+
+### `quillsail instance appearance`
+
+Show or choose light, dark or automatic for the desktop window and browser setup.
+
+```text
+quillsail instance appearance [OPTIONS] [light|dark|auto]
+```
+
+| Argument or option | What it does |
+| --- | --- |
+| `CHOICE` | Optional. |
 
 ### `quillsail instance create`
 
@@ -170,7 +201,7 @@ quillsail instance create [OPTIONS] NAME
 
 ### `quillsail instance delete`
 
-Remove a stopped instance, including default. Keep files unless --delete-data is used.
+Stop and remove an instance, including default. Keep files unless --delete-data is used.
 
 ```text
 quillsail instance delete [OPTIONS] NAME
@@ -182,7 +213,22 @@ quillsail instance delete [OPTIONS] NAME
 | `--delete-data` | Permanently delete the publication folder and all its contents. |
 | `--yes` | Skip the confirmation prompt. |
 
+### `quillsail instance folder`
+
+Print an instance's data folder. Quit or stop it before backing this up.
+
+```text
+quillsail instance folder [OPTIONS] [NAME]
+```
+
+| Argument or option | What it does |
+| --- | --- |
+| `NAME` | Optional. |
+| `--open` | Also open the folder in a file window. |
+
 ### `quillsail instance list`
+
+List your instances and show which are running.
 
 ```text
 quillsail instance list [OPTIONS]
@@ -191,6 +237,33 @@ quillsail instance list [OPTIONS]
 | Argument or option | What it does |
 | --- | --- |
 | `--json` | Print names, paths and running addresses as JSON. |
+
+### `quillsail instance logs`
+
+Show the log shared by the desktop app and terminal instances.
+
+```text
+quillsail instance logs [OPTIONS]
+```
+
+| Argument or option | What it does |
+| --- | --- |
+| `-n, --lines INTEGER RANGE` | How many recent lines to show. [default: 50; x>=0] |
+| `-f, --follow` | Keep showing new lines until Ctrl+C. |
+
+### `quillsail instance open`
+
+Get a new link to a running instance's dashboard, and open it when possible.
+
+```text
+quillsail instance open [OPTIONS] [NAME]
+```
+
+| Argument or option | What it does |
+| --- | --- |
+| `NAME` | Optional. |
+| `--public` | Open the public address instead of the dashboard. |
+| `--no-browser` | Print the link without opening a browser. |
 
 ### `quillsail instance run`
 
@@ -203,8 +276,36 @@ quillsail instance run [OPTIONS] NAMES...
 | Argument or option | What it does |
 | --- | --- |
 | `NAMES` | Required. |
+| `--port INTEGER RANGE` | Use this local port from now on. Default: the last port used, or any free one. [1<=x<=65535] |
+| `--background` | Keep running after this terminal closes. Stop it with `quillsail instance stop`. |
 | `--no-browser` | Print local setup/dashboard links without opening a browser. |
 | `--no-worker` | Run websites without processing background jobs. |
+
+### `quillsail instance status`
+
+Show whether an instance is running, its addresses and its data folder.
+
+```text
+quillsail instance status [OPTIONS] [NAME]
+```
+
+| Argument or option | What it does |
+| --- | --- |
+| `NAME` | Optional. |
+| `--json` | Print the details as JSON. |
+
+### `quillsail instance stop`
+
+Finish background work and stop instances. Their content stays saved.
+
+```text
+quillsail instance stop [OPTIONS] [NAMES]...
+```
+
+| Argument or option | What it does |
+| --- | --- |
+| `NAMES` | Optional. |
+| `--all` | Stop every running instance. |
 
 ## `quillsail jobs`
 
@@ -367,6 +468,18 @@ Report the updater/maintenance contract without loading an instance.
 ```text
 quillsail update capabilities [OPTIONS]
 ```
+
+### `quillsail update channel`
+
+Show or choose the channel that desktop updates come from.
+
+```text
+quillsail update channel [OPTIONS] [stable|beta]
+```
+
+| Argument or option | What it does |
+| --- | --- |
+| `CHOICE` | Optional. |
 
 ### `quillsail update install-command`
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Make the terminal a full alternative to the desktop window. The `quillsail` command from the terminal installer now runs the same commands as the Python package, with or without a desktop.
+- Add `quillsail instance`, which starts a publication the way opening the app does: your first one, created the first time, with a link to its setup form or dashboard. `--name` starts or creates a named one, and `--data-dir`, `--port`, `--background`, `--no-browser` and `--no-worker` adjust how it runs. If it's already running, you get a new link instead of a second copy.
+- Add `quillsail instance open`, `stop`, `status`, `logs`, `folder` and `appearance`, and `quillsail update channel`, so each part of the window has a matching command. `instance run` gains `--background` and `--port`. `instance delete` now stops an instance started in a terminal first.
+- `quillsail` on its own now prints help, and `quillsail desktop` opens the window. **The command's old options have moved:** use `quillsail desktop --no-browser`, `quillsail --instance NAME desktop`, `quillsail update --check` and `quillsail update`. Opening the app from a menu or the Finder is unchanged.
+- Fix the installer's `quillsail` command hiding output. It sent anything it didn't recognize to the desktop app in the background and discarded the result, so `quillsail instance list` printed nothing, and nothing ran on a computer with no desktop. The app now repairs a command written by an older installer when it starts.
+- Over SSH, leave the browser closed and print the `ssh -L` command that reaches the publication. `quillsail desktop` explains itself when there's no graphical session.
+- In the installed app, `quillsail update` won't start while a publication is running, because those publications run from the files it replaces.
+- Fix `quillsail serve` in the packaged app, which tried to restart itself to watch source files it doesn't have.
+
 ## 1.16.0 — Beta
 
 - Add a visual editor (#20), so writers can format a piece without knowing Markdown. It covers headings, emphasis, links, lists, task lists, quotes, code with a language, tables, footnotes, boxes and images, with undo, keyboard shortcuts and sensible pasting. Pieces are still saved as Markdown. Opening and saving a piece changes nothing, only edited blocks are rewritten, and anything the editor can't show stays as editable source. Without JavaScript, the text area works as before.
