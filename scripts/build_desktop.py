@@ -157,9 +157,9 @@ def main():
     subprocess.run([str(executable), "--smoke-test-gui"], check=True, timeout=120)
     # The terminal installer's command runs these. Their output must reach whoever ran them.
     for arguments, expected in ((["cli"], "Usage: quillsail"), (["cli", "instance", "--help"], "Usage: quillsail instance")):
-        output = subprocess.run([str(executable), *arguments], check=True, timeout=120, capture_output=True, text=True).stdout
-        if expected not in output:
-            raise RuntimeError(f"The packaged command printed nothing useful for {arguments}: {output!r}")
+        printed = subprocess.run([str(executable), *arguments], check=True, timeout=120, capture_output=True, text=True).stdout
+        if expected not in printed:
+            raise RuntimeError(f"The packaged command printed nothing useful for {arguments}: {printed!r}")
     helper = resources / "updater" / ("QuillSailUpdater.exe" if sys.platform == "win32" else "QuillSailUpdater")
     subprocess.run([str(helper), "--smoke-test"], check=True, timeout=120)
     if sys.platform == "darwin":
