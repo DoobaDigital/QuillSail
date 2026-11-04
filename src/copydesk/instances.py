@@ -10,13 +10,23 @@ import json
 import os
 import re
 import shutil
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 import requests
 
 from copydesk.config import ConfigError
-from copydesk.desktop import FORMAT, DesktopRuntime, InstanceLock, default_data_dir, write_private
+from copydesk.desktop import (
+    CONTROL_FILE,
+    CONTROL_HEADER,
+    FORMAT,
+    AlreadyRunning,
+    DesktopRuntime,
+    InstanceLock,
+    default_data_dir,
+    write_private,
+)
 
 REGISTRY_FORMAT = "quillsail.instances.v1"
 IDENTIFIER = re.compile(r"[a-z0-9][a-z0-9-]{0,47}\Z")
@@ -37,7 +47,7 @@ class Instance:
         return self.root / "copydesk.toml"
 
 
-def running_url(instance: Instance) -> str:
+def running_status(instance: Instance) -> dict:
     """Recognize this instance, rather than trusting a stale remembered port."""
     try:
         saved = json.loads((instance.root / "desktop.json").read_text(encoding="utf-8"))
@@ -49,10 +59,68 @@ def running_url(instance: Instance) -> str:
             client.trust_env = False
             response = client.get(url + "/_desktop/status", timeout=.4, allow_redirects=False)
             if response.status_code == 200 and response.json().get("instance") == hashlib.sha256(str(instance.root).encode()).hexdigest():
-                return url
+                return {**response.json(), "url": url}
     except (OSError, ValueError, AttributeError, requests.RequestException):
         pass
-    return ""
+    return {}
+
+
+def running_url(instance: Instance) -> str:
+    return running_status(instance).get("url", "")
+
+
+def _ask_running(instance: Instance, url: str, action: str) -> requests.Response:
+    token = (instance.root / CONTROL_FILE).read_text(encoding="utf-8")
+    with requests.Session() as client:
+        client.trust_env = False
+        return client.post(f"{url}/_desktop/{action}", headers={CONTROL_HEADER: token}, timeout=10, allow_redirects=False)
+
+
+def request_link(instance: Instance) -> str:
+    """A new one-time dashboard link from whichever process is running this instance."""
+    url = running_url(instance)
+    if not url:
+        raise ConfigError(f"{instance.id} isn't running. Start it with: quillsail instance run {instance.id}")
+    try:
+        response = _ask_running(instance, url, "link")
+        if response.status_code == 200:
+            return response.json()["url"]
+    except (OSError, ValueError, KeyError, requests.RequestException):
+        pass
+    # Only the account that owns this publication can issue a link, so fall back to signing in.
+    return url + "/dashboard/"
+
+
+def request_stop(instance: Instance) -> bool:
+    """Ask the process running this instance to stop. False means it wasn't running."""
+    url = running_url(instance)
+    if not url:
+        return False
+    try:
+        response = _ask_running(instance, url, "stop")
+        if response.status_code == 409:
+            raise ConfigError(response.json()["error"])
+    except (OSError, ValueError, KeyError, requests.RequestException) as exc:
+        raise ConfigError(f"{instance.id} couldn't be asked to stop. Stop it where it was started.") from exc
+    if response.status_code != 200:
+        raise ConfigError(f"{instance.id} couldn't be asked to stop. Stop it where it was started.")
+    return True
+
+
+def wait_until_stopped(instance: Instance, timeout: float = 120) -> bool:
+    """The publication's OS lock is released once its worker and website have finished."""
+    lock = InstanceLock(instance.root / "desktop.lock")
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            lock.acquire()
+        except AlreadyRunning:
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(.25)
+        else:
+            lock.release()
+            return True
 
 
 class InstanceRegistry:

@@ -31,7 +31,7 @@ The project originated in work for **The Tech Stack**, a publication operated by
 
 ## Open the desktop app
 
-The desktop launcher starts a local publication and opens the dashboard in your browser. A short first-run form creates your administrator; later launches reopen your saved publication. Packaged builds include Python and need no terminal or Docker. The native window offers **Open dashboard**, **Start / Stop**, **View logs**, and **Open data folder**. Starting with 1.9.1, its instance selector can create and run several independent publications at once. The CLI shares the same list through `quillsail instance create`, `list`, and `run`.
+The desktop launcher starts a local publication and opens the dashboard in your browser. A short first-run form creates your administrator; later launches reopen your saved publication. Packaged builds include Python and need no terminal or Docker. The native window offers **Open dashboard**, **Start / Stop**, **View logs**, and **Open data folder**. Starting with 1.9.1, its instance selector can create and run several independent publications at once. The terminal can do everything the window does: `quillsail instance` starts a publication, `quillsail desktop` opens the window, and `quillsail` lists every command.
 
 ### Desktop beta downloads
 

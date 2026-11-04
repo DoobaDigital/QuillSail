@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import logging
 import os
 import re
 import secrets
@@ -24,6 +25,7 @@ import threading
 import time
 import tomllib
 from datetime import UTC, datetime
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from string import Template
 from urllib.parse import urlencode, urlsplit
@@ -40,8 +42,15 @@ from copydesk.config import ConfigError, load_config
 from copydesk.db import db, make_engine
 from copydesk.jobs import Worker
 from copydesk.models import User
+from copydesk.security import csrf_exempt
 
 FORMAT = "quillsail.desktop.v1"
+LOG_NAME = "quillsail.log"
+# Holds the secret that lets this account's other terminals ask a running
+# instance for a new link or to stop. Other accounts can reach the port, not this file.
+CONTROL_FILE = "control.token"
+CONTROL_HEADER = "X-QuillSail-Control"
+TICKET_SECONDS = 90
 
 
 def instance_cookie_name(directory: Path) -> str:
@@ -68,6 +77,19 @@ def write_private(path: Path, content: str) -> None:
     finally:
         if temporary:
             temporary.unlink(missing_ok=True)
+
+
+def open_log(logfile: Path) -> RotatingFileHandler:
+    """Log to the private file that the desktop app and `instance logs` both show."""
+    # Create with private permissions before logging opens the file.
+    descriptor = os.open(logfile, os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600)
+    os.close(descriptor)
+    os.chmod(logfile, 0o600)
+    handler = RotatingFileHandler(logfile, maxBytes=1_000_000, backupCount=2, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
+    logging.getLogger().addHandler(handler)
+    logging.getLogger().setLevel(logging.INFO)
+    return handler
 
 
 class AlreadyRunning(RuntimeError):
@@ -174,6 +196,10 @@ class DesktopRuntime:
         self._ticket_lock = threading.Lock()
         # The launcher sets this to light, dark or auto; browser setup follows it.
         self.appearance = "light"
+        # A terminal stops when asked. The launcher window has its own Stop button.
+        self.accepts_stop = False
+        self.stop_requested = threading.Event()
+        self._control = secrets.token_urlsafe(32)
 
     def initialize(self):
         """Prepare a stopped publication without starting HTTP or sending jobs."""
@@ -235,7 +261,7 @@ class DesktopRuntime:
         for path in backup.iterdir():
             os.chmod(path, 0o600)
 
-    def start(self, *, with_worker=True):
+    def start(self, *, with_worker=True, port=None):
         if self.server is not None:
             raise RuntimeError("This publication is already running.")
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -246,20 +272,23 @@ class DesktopRuntime:
             self.app.config["SESSION_COOKIE_NAME"] = instance_cookie_name(self.root)
             self.app.extensions["copydesk_desktop"] = self
             self.app.add_url_rule("/_desktop/open", "setup.desktop_open", self._open)
-            self.app.add_url_rule("/_desktop/status", "setup.desktop_status", lambda: {
-                "instance": hashlib.sha256(str(self.root).encode()).hexdigest(), "version": __version__})
-            port = saved.get("port", 5080)
-            if not isinstance(port, int) or not 0 <= port <= 65535:
-                port = 0
-            if port:
+            self.app.add_url_rule("/_desktop/status", "setup.desktop_status", self._status)
+            self.app.add_url_rule("/_desktop/link", "setup.desktop_link", csrf_exempt(lambda: self._control_link()), methods=["POST"])
+            self.app.add_url_rule("/_desktop/stop", "setup.desktop_stop", csrf_exempt(lambda: self._control_stop()), methods=["POST"])
+            listen_port = saved.get("port", 5080) if port is None else port
+            if not isinstance(listen_port, int) or not 0 <= listen_port <= 65535:
+                listen_port = 0
+            if listen_port and port is None:
                 with socket.socket() as probe:
                     try:
-                        probe.bind(("127.0.0.1", port))
+                        probe.bind(("127.0.0.1", listen_port))
                     except OSError:
-                        port = 0
+                        listen_port = 0
             try:
-                self.server = make_server("127.0.0.1", port, self.app, threaded=True, request_handler=QuietHandler)
-            except (OSError, SystemExit):
+                self.server = make_server("127.0.0.1", listen_port, self.app, threaded=True, request_handler=QuietHandler)
+            except (OSError, SystemExit) as exc:
+                if port is not None:
+                    raise ConfigError(f"Port {port} is already in use. Choose another with --port.") from exc
                 self.server = make_server("127.0.0.1", 0, self.app, threaded=True, request_handler=QuietHandler)
             self.url = f"http://127.0.0.1:{self.server.server_port}"
             self.app.config["SERVER_NAME"] = config.server_name
@@ -273,6 +302,8 @@ class DesktopRuntime:
             else:
                 self._start_public(config.base_url, saved.get("public_port", 0))
             write_private(self.state_path, json.dumps({"format": FORMAT, "port": self.server.server_port, "public_port": self.public_server.server_port if self.public_server else 0, "version": __version__}) + "\n")
+            self.stop_requested.clear()
+            write_private(self.root / CONTROL_FILE, self._control)
             self.http_thread = threading.Thread(target=self.server.serve_forever, name="quillsail-local-web", daemon=True)
             self.http_thread.start()
             if with_worker:
@@ -396,7 +427,7 @@ class DesktopRuntime:
         with self._ticket_lock:
             now = time.monotonic()
             self._tickets = {key: expiry for key, expiry in self._tickets.items() if expiry > now}
-            self._tickets[ticket] = now + 90
+            self._tickets[ticket] = now + TICKET_SECONDS
         return self.url + "/_desktop/open?" + urlencode({"ticket": ticket})
 
     def _open(self):
@@ -415,6 +446,25 @@ class DesktopRuntime:
 
     def setup_authorized(self):
         return hmac.compare_digest(str(session.get("_desktop_setup", "")), self._proof)
+
+    def _status(self):
+        return {"instance": hashlib.sha256(str(self.root).encode()).hexdigest(), "version": __version__,
+                "public_url": self.public_url, "public_status": self.hosting_status or (self.tunnel.status if self.tunnel else "Offline")}
+
+    def _require_control(self):
+        if not hmac.compare_digest(request.headers.get(CONTROL_HEADER, "").encode(), self._control.encode()):
+            abort(403)
+
+    def _control_link(self):
+        self._require_control()
+        return {"url": self.launch_url()}
+
+    def _control_stop(self):
+        self._require_control()
+        if not self.accepts_stop:
+            return {"error": "This publication is running in the QuillSail window. Choose Stop there, or run: quillsail quit"}, 409
+        self.stop_requested.set()
+        return {"stopping": True}
 
     def stop(self):
         try:
@@ -436,6 +486,7 @@ class DesktopRuntime:
                     self.server.shutdown()
                     self.http_thread.join()
                 self.server.server_close()
+                (self.root / CONTROL_FILE).unlink(missing_ok=True)
             if self.app:
                 with self.app.app_context():
                     db.session.remove()
@@ -444,6 +495,7 @@ class DesktopRuntime:
             self.server = self.worker = self.app = None
             self.http_thread = self.worker_thread = None
             self._proof = secrets.token_urlsafe(32)
+            self._control = secrets.token_urlsafe(32)
             self._tickets.clear()
             self.lock.release()
 

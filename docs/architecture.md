@@ -39,7 +39,7 @@ The package is named `copydesk` for compatibility with existing installations; t
 | `views/` | Blueprints: `public`, `auth`, `account`, `subscribe`, `write`, `competitions`, `business`, `api` (`/api/v1`), `setup`, and `dashboard/` with one module per area |
 | `cli.py` | The `quillsail` command, built with Click |
 | `migrations/versions/` | Alembic migrations, numbered `0001`, `0002`… |
-| `desktop.py`, `desktop_ui.py`, `launcher.py`, `instances.py` | The desktop runtime, the Qt launcher, the local control socket and named instances |
+| `desktop.py`, `desktop_ui.py`, `launcher.py`, `instances.py`, `installed_command.py` | The desktop runtime, the Qt launcher, the local control socket, named instances and repairing the installer's `quillsail` command |
 | `updater.py`, `update_metadata.py`, `update_install.py`, `update_commands.py` | Signed updates with TUF, and the separate installer helper |
 | `server_update.py`, `compose_update.py`, `server_backup.py`, `server_command.py`, `maintenance.py` | Transactional server updates and recovery |
 | `extensions/webhooks` | The bundled webhooks extension |

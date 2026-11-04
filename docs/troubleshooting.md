@@ -31,7 +31,7 @@ A minimal Linux system may be missing desktop libraries. On Ubuntu, install them
 sudo apt-get install libegl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 libxcb-render-util0 libxcb-xfixes0
 ```
 
-The app needs a graphical desktop and glibc 2.35 or newer (Ubuntu 22.04 or later).
+The window needs a graphical desktop. Without one, run `quillsail instance` from a terminal. Both need glibc 2.35 or newer (Ubuntu 22.04 or later).
 
 ### "QuillSail could not start"
 

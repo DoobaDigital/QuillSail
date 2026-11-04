@@ -20,13 +20,70 @@ Quit QuillSail before reinstalling or uninstalling. On macOS, remove the app fro
 
 The Linux package installs into `/opt/QuillSail`, with menu and icon files under `/usr/share`. Use your software installer to upgrade or reinstall it: the app updater cannot replace this administrator-owned directory. Per-user terminal installations continue to support in-app updates.
 
-Linux builds use Ubuntu 22.04 and require a desktop environment. On a minimal Ubuntu installation, missing Qt/X11 libraries can be installed with `sudo apt-get install libegl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 libxcb-render-util0 libxcb-xfixes0`. Other distributions need the equivalent packages. Windows builds target x64 Windows; Windows ARM and 32-bit systems are not included.
+Linux builds use Ubuntu 22.04. The window needs a desktop environment, but [the terminal commands](#using-quillsail-from-the-terminal) don't. On a minimal Ubuntu installation, missing Qt/X11 libraries can be installed with `sudo apt-get install libegl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 libxcb-render-util0 libxcb-xfixes0`. Other distributions need the equivalent packages. Windows builds target x64 Windows; Windows ARM and 32-bit systems are not included.
 
 The launcher starts automatically. **Open dashboard** reopens your browser, **Stop** finishes background work and stops the local website, and **Start** starts it again. **View logs** opens the private local log, while **Open data folder** shows the files to back up. The launcher uses an available port on `127.0.0.1`, remembers it, and stays accessible only on your computer.
 
 The launcher opens in light mode. Under **Appearance**, choose **Dark**, or **Automatic** to follow your system's light or dark setting. Your choice is remembered for the next launch, and the first-time setup page in your browser uses the same appearance.
 
 Email initially stays in local `.eml` files. Configure a sender in Settings → Email when you want actual delivery. The dashboard stays private on your computer. Use [Domains and launch](hosting.md) to connect a public address or enable the optional offline fallback. [Server installation](installation.md) covers an always-running website and email worker. Connecting Gmail/Outlook still needs the provider registration described in [email connectors](email-connectors.md).
+
+## Using QuillSail from the terminal
+
+Everything in the window also works from a terminal, with or without a desktop. Run `quillsail` on its own to see every command.
+
+```sh
+quillsail instance
+```
+
+This does what opening the app does. It starts your first publication, creating it the first time, then prints a link to the setup form or dashboard and opens your browser if it can. It keeps running until you press **Ctrl+C**, or until the terminal closes. Both finish background work first, and your content stays saved. If the publication is already running, you get a new link instead of a second copy.
+
+You can add any of these options:
+
+| Option | What it does |
+| --- | --- |
+| `--name NAME` or `-n NAME` | Start the publication with this name, creating it if it's new. |
+| `--data-dir PATH` | Start the publication saved in this folder, or create one in this empty folder. |
+| `--port PORT` | Use this local port from now on. |
+| `--background` | Keep running after this terminal closes. Stop it with `quillsail instance stop`. |
+| `--no-browser` | Print the link without opening a browser. |
+| `--no-worker` | Don't process background jobs such as email. |
+
+For example, `quillsail instance --name "Student Blog" --port 5080 --background`.
+
+Each part of the window has a matching command:
+
+| In the window | In the terminal |
+| --- | --- |
+| **Publication instance** | `quillsail instance --name NAME`, or `quillsail instance list` to see them all |
+| **New instance…** | `quillsail instance --name NAME`, or `quillsail instance create NAME` to create it without starting it |
+| **Add existing…** | `quillsail instance add NAME PATH` |
+| **Delete instance…** | `quillsail instance delete NAME`, with `--delete-data` to erase its files |
+| Status and addresses | `quillsail instance status NAME` |
+| **Start** | `quillsail instance run NAME`, which can also start several at once |
+| **Stop** | `quillsail instance stop NAME`, or `--all` for everything |
+| **Open dashboard** | `quillsail instance open NAME` |
+| **Open public site** | `quillsail instance open NAME --public` |
+| **View logs** | `quillsail instance logs`, with `--follow` to keep watching |
+| **Open data folder** | `quillsail instance folder NAME`, with `--open` to open a file window |
+| **Check for updates** | `quillsail update --check` |
+| **Install QuillSail…** | `quillsail update` |
+| **Update channel** | `quillsail update channel stable` or `beta` |
+| **Appearance** | `quillsail instance appearance light`, `dark` or `auto` |
+| Closing the window | `quillsail instance --background` keeps publications running without one |
+| **Quit QuillSail** | `quillsail quit` for the window, and `quillsail instance stop --all` for terminal instances |
+
+When a command doesn't name an instance, it uses the only one running, or your first one if none are. To open the window itself, run `quillsail desktop`.
+
+### Reaching a publication on another computer
+
+A publication only answers on its own computer, at `127.0.0.1`. To set one up over SSH, start it, then open a tunnel from your own computer using the same port on both ends:
+
+```sh
+ssh -L 5080:127.0.0.1:5080 you@your-server
+```
+
+Over SSH, `quillsail instance` prints this command with the right port and leaves the browser closed. Open the printed link on your own computer. Use `127.0.0.1` as printed, because `localhost` is refused. Each link works once and lasts 90 seconds, so run `quillsail instance open` in another terminal for a new one. Once your account exists, you can open `http://127.0.0.1:PORT/dashboard/` and sign in.
 
 ## Data and updates
 
@@ -40,7 +97,7 @@ quillsail update --app /Applications/QuillSail.app
 quillsail update --app /path/to/QuillSail --channel stable --yes
 ```
 
-`--app` names the complete desktop application folder. A command running outside the desktop bundle installs synchronously; reopen the app afterwards. The packaged executable also accepts `--check-updates` or `--update --yes`. Without `--app` or `--desktop`, the CLI manages a registered server; see [server updates](server-updates.md). `quillsail upgrade` remains the database-migration command.
+`--app` names the complete desktop application folder. A command running outside the desktop bundle installs synchronously; reopen the app afterwards. In the installed app, `quillsail update` updates the app itself and refuses to start while any publication is running, because those publications run from the files it replaces. The packaged executable also accepts `--check-updates` or `--update --yes`. Without `--app` or `--desktop`, the CLI manages a registered server; see [server updates](server-updates.md). `quillsail upgrade` remains the database-migration command.
 
 Versions before updater support must be replaced manually once using a newer desktop download. Committing a change to GitHub does not create a new downloadable version. A maintainer must publish a tested release and its signed update metadata before clients can receive it.
 
@@ -93,7 +150,7 @@ The launcher uses [Qt for Python](https://doc.qt.io/qtforpython-6/deployment/dep
 
 Starting with 1.9.1, **Publication instance** selects the publication controlled by the launcher. Choose **New instance…**, name it, and finish the usual setup in your browser. **Add existing…** registers an existing desktop data folder without moving or copying it. **Refresh** picks up instances created by the CLI.
 
-Start each desired instance with **Start**. Switching the selector keeps the others running; **Stop** stops only the selected publication. Each instance has its own database, configuration, account setup, browser cookie, uploads, email queue and available loopback port. A second launcher cannot start another worker for the same folder. If an instance is running in another launcher or terminal, you can open its dashboard here; stop it from the launcher or terminal that started it.
+Start each desired instance with **Start**. Switching the selector keeps the others running; **Stop** stops only the selected publication. Each instance has its own database, configuration, account setup, browser cookie, uploads, email queue and available loopback port. A second launcher cannot start another worker for the same folder. If an instance is running in another launcher or terminal, you can open its dashboard here. Stop it from the launcher that started it, or with `quillsail instance stop` if a terminal started it.
 
 Closing the window keeps every instance running in the background, like other menu bar apps. QuillSail stays in the macOS menu bar or the Windows and Linux system tray; choose **Open QuillSail** there, click its Dock icon, or open the app again to bring the window back. To stop the instances, quit QuillSail: use the **Quit QuillSail** button, **⌘Q** (Ctrl+Q on Windows and Linux), the menu bar or tray icon, or run `quillsail quit` in a terminal. Quitting finishes background work first, and your content stays saved. If your Linux desktop has no system tray, closing the window quits instead. Installing an update also stops the launcher's instances before replacing the shared application. Publication folders and the instance list remain saved; reopen and start the publications you want after the update. Stop CLI-launched instances before replacing the desktop application.
 
@@ -108,7 +165,7 @@ quillsail instance list
 quillsail instance run student-blog community-news
 ```
 
-The last command starts both websites and background workers, prints their local setup/dashboard links, and opens them in the browser. Leave the terminal running; **Ctrl+C** stops all instances started by that command. `quillsail quit` quits the desktop app and the instances it started; it does not stop instances running in a terminal. Use `--no-browser` to print links only or `--no-worker` to leave queued jobs unprocessed. You can also run instances in separate terminals. `instance list --json` reports their paths and currently running addresses.
+The last command starts both websites and background workers, prints their local setup/dashboard links, and opens them in the browser. Leave the terminal running; **Ctrl+C** stops all instances started by that command. Add `--background` to keep them running after the terminal closes. `quillsail quit` quits the desktop app and the instances it started; it does not stop instances running in a terminal, which `quillsail instance stop` does. Use `--no-browser` to print links only or `--no-worker` to leave queued jobs unprocessed. You can also run instances in separate terminals. `instance list --json` reports their paths and currently running addresses.
 
 Use `quillsail instance add NAME /path/to/publication` for an existing desktop publication. Named instances are also available to maintenance commands and the desktop launcher:
 
@@ -133,7 +190,7 @@ quillsail instance delete student-blog --delete-data
 quillsail instance delete default
 ```
 
-The first command keeps the files; the second permanently deletes the publication folder, including folders registered with `instance add`. The third removes Default publication, keeping its files. Use `--yes` to skip confirmation. Stop the selected instance in its launcher or terminal before deleting it from the CLI; running instances are refused.
+The first command keeps the files; the second permanently deletes the publication folder, including folders registered with `instance add`. The third removes Default publication, keeping its files. Use `--yes` to skip confirmation. If the instance is running in a terminal, the command stops it first. If it's running in the desktop window, stop it there first.
 
 **View logs** opens the launcher's log in the instance registry folder. The log stays available when a publication is deleted.
 

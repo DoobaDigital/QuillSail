@@ -3,7 +3,7 @@
 #   irm __QUILLSAIL_SITE_URL__/install.ps1 | iex
 #
 # Installs the QuillSail desktop app for your Windows account and a `quillsail`
-# command that opens it. The download is checked against the size and SHA-256
+# command for your terminal. The download is checked against the size and SHA-256
 # checksum listed in QuillSail's signed release feed before anything is
 # installed. No administrator rights are needed, and publications are never touched.
 #
@@ -72,7 +72,7 @@ function Install-QuillSail {
     function Assert-NotRunning {
         $running = Get-Process -Name 'QuillSail' -ErrorAction SilentlyContinue |
             Where-Object { $_.Path -and $_.Path -ieq $exe }
-        if ($running) { Stop-Install 'QuillSail is open. Choose Quit QuillSail in the launcher, then run the installer again.' }
+        if ($running) { Stop-Install 'QuillSail is running. Run quillsail instance stop --all and quillsail quit, then run the installer again.' }
     }
 
     # --- uninstall -----------------------------------------------------------------------------
@@ -231,9 +231,9 @@ function Install-QuillSail {
         if ($exe -ieq $default) { $target = '%LOCALAPPDATA%\Programs\QuillSail\QuillSail.exe' }
         $lines = @(
             '@echo off',
-            "$MarkerLine Opens the QuillSail desktop app.",
+            "$MarkerLine Runs the quillsail command from the app.",
             "rem Remove it with: `$env:QUILLSAIL_UNINSTALL = '1'; irm $Site/install.ps1 | iex",
-            "start `"`" `"$target`" %*"
+            "`"$target`" cli %*"
         )
         $oem = [Text.Encoding]::GetEncoding([Globalization.CultureInfo]::CurrentCulture.TextInfo.OEMCodePage)
         [IO.File]::WriteAllText($command, ($lines -join "`r`n") + "`r`n", $oem)
@@ -269,8 +269,12 @@ function Install-QuillSail {
         Note "A quillsail command already exists in $binDir and wasn't made by this installer, so it was left alone."
     }
     Say ''
-    if ($pathChanged) { Say "Added $binDir to your PATH. Open a new terminal, then run: quillsail" }
-    elseif ($commandStatus -eq 'written') { Say 'Open QuillSail by running: quillsail' }
+    if ($pathChanged) { Say "Added $binDir to your PATH. Open a new terminal, then start your publication: quillsail instance" }
+    elseif ($commandStatus -eq 'written') { Say 'Start your publication: quillsail instance' }
+    if ($commandStatus -eq 'written') {
+        Say 'Open the desktop window: quillsail desktop'
+        Say 'See every command: quillsail'
+    }
     Say 'You can also open QuillSail from the Start menu.'
     Say "Your publications are kept in $dataDir."
 }

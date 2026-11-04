@@ -2,6 +2,18 @@
 
 QuillSail is beta software. These are development checks, not an independent security audit. Private deployment addresses, access details and operations records are excluded from the public repository.
 
+## Unreleased — the terminal as a full alternative to the desktop window
+
+The `quillsail` command from the terminal installer now runs the same commands as the Python package. On its own it prints help, `quillsail desktop` opens the window, and `quillsail instance` starts a publication the way opening the app does. Each part of the window has a matching command. The change began with a real report: on a Linux server with no desktop, `quillsail instance list` printed nothing, because the installer's command sent it to the desktop app in the background and discarded the output.
+
+The new tests run the real command as separate processes in a disposable home folder. They cover a background start, a new link from another command, browser setup with that link, stopping, restarting, deleting a running instance, a failed background start, and closing the terminal with SIGHUP, SIGTERM and SIGINT, along with `nohup` keeping an instance alive. Requests to a running instance's new control routes are refused with no token, a wrong or malformed token, another site's `Origin`, or on the public listener. Only the account that owns the publication can read the token file.
+
+A PyInstaller build on an Apple silicon Mac ran these paths through the installed command: help, background start, status, a new link serving the setup form, logs, stop, a foreground run over a simulated SSH session ended by SIGHUP, `--port`, deleting a running instance and repairing a command written by an older installer. Its smoke test passed, and its window checks passed offscreen. That build sent no email.
+
+Not checked: the Windows console path on a real terminal, opening the real desktop window with `quillsail desktop` from a packaged app, and browser opening from a packaged Linux app. The `.deb`, DMG and Windows setup still don't add a `quillsail` command; only the terminal installer does.
+
+Application tests: 1022 passed, 3 skipped. Website tests: 184 passed, 1 skipped. Ruff, generated references and public-file boundaries passed. Node tests didn't run locally, because this Mac has no Node. They run in CI.
+
 ## 1.16.0 Beta — visual editor, HTML writing and Jekyll import (#20)
 
 Writers can now choose a visual editor, Markdown or safe HTML, and site owners can import a Jekyll blog. Markdown stays the saved format for visual writing. The server reads Markdown for the editor with the same parser that renders it, each block keeps its original text, and only edited blocks are rewritten.

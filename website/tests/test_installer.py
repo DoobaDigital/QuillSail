@@ -160,7 +160,12 @@ def test_linux_install_update_and_uninstall(tmp_path, docs, home):
         text = command.read_text()
         assert "Installed by the QuillSail installer." in text and str(installed / "QuillSail") in text
         version = subprocess.run([str(command), "--version"], capture_output=True, text=True)
-        assert "QuillSail test --version" in version.stdout
+        assert "QuillSail test cli --version" in version.stdout
+        # Commands must reach the terminal. They used to run hidden in the background.
+        listing = subprocess.run([str(command), "instance", "list"], capture_output=True, text=True)
+        assert listing.stdout == "QuillSail test cli instance list\n"
+        assert subprocess.run([str(command)], capture_output=True, text=True).stdout == "QuillSail test cli\n"
+        assert "quillsail instance" in result.stdout
         entry = home / ".local/share/applications/quillsail.desktop"
         assert f'Exec="{installed / "QuillSail"}"' in entry.read_text()
         assert (home / ".local/share/icons/hicolor/scalable/apps/quillsail.svg").exists()
@@ -175,6 +180,22 @@ def test_linux_install_update_and_uninstall(tmp_path, docs, home):
         assert removed.returncode == 0, removed.stderr
         assert not installed.exists() and not command.exists() and not entry.exists()
         assert (data / "copydesk.toml").exists()
+    finally:
+        site.close()
+
+
+def test_running_the_installer_again_replaces_a_command_that_hid_its_output(tmp_path, docs, home):
+    linux_on_mac = simulate_linux()
+    site = LocalSite(tmp_path, docs, {"linux-x86_64": linux_bundle()})
+    apps, bin_dir = home / "apps", home / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "quillsail").write_text("#!/bin/sh\n# Installed by the QuillSail installer. Opens the QuillSail desktop app.\nnohup true &\n")
+    try:
+        result = run_installer(site, home, "--dir", str(apps), "--bin-dir", str(bin_dir), "--no-modify-path",
+                               linux_on_mac=linux_on_mac)
+        assert result.returncode == 0, result.stderr
+        command = (bin_dir / "quillsail").read_text()
+        assert "nohup" not in command and 'cli "$@"' in command
     finally:
         site.close()
 
@@ -263,7 +284,7 @@ def test_macos_install_verifies_the_signature_and_replaces_older_versions(tmp_pa
         assert json.loads(resources.read_text())["version"] == VERSION
         subprocess.run(["codesign", "--verify", "--deep", "--strict", str(apps / "QuillSail.app")], check=True)
         command = (bin_dir / "quillsail").read_text()
-        assert 'exec open "$app"' in command and str(apps / "QuillSail.app") in command
+        assert str(apps / "QuillSail.app/Contents/MacOS/QuillSail") in command and 'cli "$@"' in command
         assert not list(apps.glob(".quillsail-install-*"))
     finally:
         site.close()

@@ -155,6 +155,9 @@ def main():
     # This uses a disposable database and file mail. It sends no email.
     subprocess.run([str(executable), "--smoke-test"], check=True, timeout=120)
     subprocess.run([str(executable), "--smoke-test-gui"], check=True, timeout=120)
+    # The terminal installer's command runs these.
+    subprocess.run([str(executable), "cli"], check=True, timeout=120)
+    subprocess.run([str(executable), "cli", "instance", "--help"], check=True, timeout=120)
     helper = resources / "updater" / ("QuillSailUpdater.exe" if sys.platform == "win32" else "QuillSailUpdater")
     subprocess.run([str(helper), "--smoke-test"], check=True, timeout=120)
     if sys.platform == "darwin":

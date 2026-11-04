@@ -14,7 +14,7 @@ On Windows, in PowerShell:
 irm https://quillsail.blog/install.ps1 | iex
 ```
 
-Then open QuillSail by running `quillsail`, or from your Applications folder, Start menu or app menu. The installer needs no administrator rights and never touches your publications.
+Then start your publication with `quillsail instance`, open the desktop window with `quillsail desktop`, or open QuillSail from your Applications folder, Start menu or app menu. The installer needs no administrator rights and never touches your publications.
 
 ## What the installer does
 
@@ -65,22 +65,27 @@ irm https://quillsail.blog/install.ps1 | iex
 
 ## The `quillsail` command
 
-The command opens the desktop app. With no options it starts the app in the background, so closing the terminal doesn't stop your publications. It also passes the app's own options through:
+The command does everything the desktop window does, so you can use QuillSail entirely from a terminal, including on a computer with no desktop. Run `quillsail` on its own to see every command.
 
 | Command | What it does |
 | --- | --- |
-| `quillsail` | Open the launcher, or bring it forward if it's already open. |
-| `quillsail --instance NAME` | Open the launcher with a named publication selected. |
-| `quillsail --no-browser` | Start without opening the browser. |
-| `quillsail --check-updates` | Check for a signed update, then exit. |
-| `quillsail --update --yes` | Download and install a signed update. |
+| `quillsail instance` | Start your publication in this terminal and print a link to its dashboard. |
+| `quillsail instance --name NAME` | Start the publication with this name, creating it if it's new. |
+| `quillsail instance --background` | Keep it running after this terminal closes. |
+| `quillsail instance stop` | Stop it. Its content stays saved. |
+| `quillsail desktop` | Open the desktop window, or bring it forward if it's already open. Closing the terminal doesn't close the window. |
+| `quillsail update` | Download and install a signed update. Add `--check` to only check. |
 | `quillsail --version` | Show the installed version. |
 
-The server and instance commands described in the [command-line reference](reference/cli.md), such as `quillsail instance create` and `quillsail quit`, come with the Python package. If you've installed both, keep the package's command and pass `--bin-dir` (or set `QUILLSAIL_BIN_DIR`) to put the desktop command somewhere else. The installer never replaces a `quillsail` command it didn't create.
+[Using QuillSail from the terminal](desktop.md#using-quillsail-from-the-terminal) covers the rest, and the [command-line reference](reference/cli.md) lists every command and option.
+
+If you've also installed the Python package, keep the package's command and pass `--bin-dir` (or set `QUILLSAIL_BIN_DIR`) to put this one somewhere else. The installer never replaces a `quillsail` command it didn't create.
+
+Older installers wrote a `quillsail` command that could only open the window, and it hid the output of anything else you ran. The app replaces that command the next time it starts. If yours is in a folder that isn't on your `PATH`, run the installer again.
 
 ## Updating
 
-The app updates itself: choose **Check for updates** in the launcher, or run `quillsail --check-updates`. Running the installer again also installs the newest release, as long as QuillSail isn't open. Quit it first with **Quit QuillSail**.
+The app updates itself: choose **Check for updates** in the launcher, or run `quillsail update`. Running the installer again also installs the newest release, as long as QuillSail isn't running. Stop it first with `quillsail instance stop --all` and `quillsail quit`, or **Quit QuillSail**.
 
 ## Uninstalling
 
@@ -122,14 +127,14 @@ The release details are available as JSON at `https://quillsail.blog/api/v1/rele
 
 ## Troubleshooting
 
-**"QuillSail is open."** Choose **Quit QuillSail** in the launcher, or quit it from the menu bar or system tray, then run the installer again.
+**"QuillSail is running."** Run `quillsail instance stop --all` and `quillsail quit`, or choose **Quit QuillSail** in the launcher, then run the installer again.
 
 **`quillsail: command not found`.** Open a new terminal window so it reads the updated `PATH`. If you used `--no-modify-path`, add `~/.local/bin` to your `PATH` yourself.
 
 **"The download's SHA-256 checksum doesn't match."** The file was corrupted or changed on the way. Nothing was installed. Try again later. If it keeps happening, [report it](https://github.com/DoobaDigital/QuillSail/issues).
 
-**Linux: "No desktop session was found."** The app needs a graphical desktop. For a server, use [Docker Compose or the Python package](installation.md) instead.
+**Linux: "No desktop session was found."** The desktop window needs a graphical desktop, but `quillsail instance` doesn't. To run a public site on a server, use [Docker Compose or the Python package](installation.md) instead.
 
 **Linux: "The desktop app needs glibc 2.35 or newer."** The Linux app is built on Ubuntu 22.04. On older or musl-based systems, use the Python package.
 
-**Linux: the app won't open.** A minimal system may be missing desktop libraries. See [using the app](desktop.md#using-the-app) for the list.
+**Linux: the desktop window won't open.** A minimal system may be missing desktop libraries. See [using the app](desktop.md#using-the-app) for the list.

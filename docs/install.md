@@ -33,7 +33,7 @@ Or download it from [quillsail.blog/download](https://quillsail.blog/download):
 | 64-bit Windows | `QuillSail-VERSION-windows-x86_64.zip` |
 | 64-bit Linux with a desktop (Ubuntu 22.04 or newer) | `QuillSail-VERSION-linux-x86_64.tar.gz` |
 
-Every version, with its checksums, is also on [GitHub Releases](https://github.com/DoobaDigital/QuillSail/releases). The [terminal installer](install-script.md) and the [desktop app guide](desktop.md) cover both routes in detail.
+Every version, with its checksums, is also on [GitHub Releases](https://github.com/DoobaDigital/QuillSail/releases). No desktop on that computer? [`quillsail instance`](desktop.md#using-quillsail-from-the-terminal) runs the same app from a terminal. The [terminal installer](install-script.md) and the [desktop app guide](desktop.md) cover both routes in detail.
 
 ## A server
 

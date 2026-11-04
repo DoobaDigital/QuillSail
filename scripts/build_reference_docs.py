@@ -87,9 +87,9 @@ def cli_page() -> str:
         "Commands that work on a publication find its configuration from `--config`, then the "
         "`COPYDESK_CONFIG` environment variable, then `./copydesk.toml`, then `/etc/copydesk/copydesk.toml`. "
         "Use `--instance NAME` instead for a named local publication.\n\n"
-        "This page covers the full command-line tool that comes with the Python package and server "
-        "installations. The `quillsail` command added by the [terminal installer](../install-script.md) "
-        "opens the desktop app instead.\n\n"
+        "This page covers the full command-line tool. It comes with the Python package, server "
+        "installations and the [terminal installer](../install-script.md). Without a command, `quillsail` "
+        "prints this list.\n\n"
         "Run `quillsail COMMAND --help` for the same details in your terminal."
     )
     options = "## Options for every command\n\n" + "\n".join(command_details(cli, "quillsail"))
