@@ -79,13 +79,31 @@ def write_private(path: Path, content: str) -> None:
             temporary.unlink(missing_ok=True)
 
 
+class SharedLogHandler(RotatingFileHandler):
+    """The window and terminals share one log, so no process keeps it open between lines.
+
+    A handle held open would keep writing to the old file after another process
+    rotates the log, and on Windows it would stop that rotation from working at all.
+    """
+
+    def _open(self):
+        return self._builtin_open(self.baseFilename, self.mode, encoding=self.encoding, errors=self.errors,
+                                  opener=lambda path, flags: os.open(path, flags, 0o600))
+
+    def emit(self, record):
+        super().emit(record)
+        if self.stream:
+            self.stream.close()
+            self.stream = None
+
+
 def open_log(logfile: Path) -> RotatingFileHandler:
     """Log to the private file that the desktop app and `instance logs` both show."""
     # Create with private permissions before logging opens the file.
     descriptor = os.open(logfile, os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600)
     os.close(descriptor)
     os.chmod(logfile, 0o600)
-    handler = RotatingFileHandler(logfile, maxBytes=1_000_000, backupCount=2, encoding="utf-8")
+    handler = SharedLogHandler(logfile, maxBytes=1_000_000, backupCount=2, encoding="utf-8", delay=True)
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
     logging.getLogger().addHandler(handler)
     logging.getLogger().setLevel(logging.INFO)

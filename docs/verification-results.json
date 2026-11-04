@@ -392,7 +392,7 @@
     "date": "2026-11-03",
     "pull_request": 46,
     "application": {
-      "passed": 1024,
+      "passed": 1030,
       "skipped": 3
     },
     "website": {
@@ -416,6 +416,10 @@
     "windows_real_terminal_checked": false,
     "packaged_window_opened_by_command": false,
     "packaged_linux_browser_opening_checked": false,
-    "real_email_sent": false
+    "real_email_sent": false,
+    "code_review": {
+      "problems_found": 10,
+      "fixed_before_merge": 10
+    }
   }
 }

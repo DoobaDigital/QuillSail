@@ -77,6 +77,35 @@ def render_icon(source, destination):
         raise RuntimeError("The QuillSail app icon could not be saved.")
 
 
+def command_smoke(executable):
+    """Run a disposable publication through the terminal installer's command. This sends no email."""
+    with tempfile.TemporaryDirectory(prefix="quillsail-command-smoke-", ignore_cleanup_errors=True) as folder:
+        environment = {**os.environ, "HOME": folder, "USERPROFILE": folder, "LOCALAPPDATA": folder, "XDG_DATA_HOME": folder,
+                       "QUILLSAIL_INSTANCE_HOME": os.path.join(folder, "manager")}
+
+        def command(*arguments):
+            result = subprocess.run([str(executable), "cli", *arguments], timeout=180, capture_output=True, text=True, env=environment)
+            if result.returncode:
+                raise RuntimeError(f"The packaged command failed for {arguments}: {result.stdout!r} {result.stderr!r}")
+            return result.stdout
+
+        # Its output must reach whoever ran it.
+        for arguments, expected in (((), "Usage: quillsail"), (("instance", "--help"), "Usage: quillsail instance")):
+            if expected not in (printed := command(*arguments)):
+                raise RuntimeError(f"The packaged command printed nothing useful for {arguments}: {printed!r}")
+        try:
+            command("instance", "--name", "Command smoke", "--background", "--no-browser")
+            if not json.loads(command("instance", "status", "--json"))["running"]:
+                raise RuntimeError("The packaged command's background publication isn't running.")
+            if "ticket=" not in command("instance", "open", "--no-browser"):
+                raise RuntimeError("The packaged command didn't get a new link from its running publication.")
+        finally:
+            command("instance", "stop", "--all")
+        if json.loads(command("instance", "status", "--json"))["running"]:
+            raise RuntimeError("The packaged command's background publication didn't stop.")
+    print(json.dumps({"command_smoke": "passed", "background_publication": True, "new_link": True, "sent_emails": 0}))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=Path("dist/desktop"))
@@ -155,11 +184,7 @@ def main():
     # This uses a disposable database and file mail. It sends no email.
     subprocess.run([str(executable), "--smoke-test"], check=True, timeout=120)
     subprocess.run([str(executable), "--smoke-test-gui"], check=True, timeout=120)
-    # The terminal installer's command runs these. Their output must reach whoever ran them.
-    for arguments, expected in ((["cli"], "Usage: quillsail"), (["cli", "instance", "--help"], "Usage: quillsail instance")):
-        printed = subprocess.run([str(executable), *arguments], check=True, timeout=120, capture_output=True, text=True).stdout
-        if expected not in printed:
-            raise RuntimeError(f"The packaged command printed nothing useful for {arguments}: {printed!r}")
+    command_smoke(executable)
     helper = resources / "updater" / ("QuillSailUpdater.exe" if sys.platform == "win32" else "QuillSailUpdater")
     subprocess.run([str(helper), "--smoke-test"], check=True, timeout=120)
     if sys.platform == "darwin":

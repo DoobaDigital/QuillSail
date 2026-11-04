@@ -252,10 +252,10 @@ def open_packaged_window(arguments: list[str]) -> None:
         from copydesk.updater import installation_path
 
         app = str(installation_path())
-        subprocess.run(["open", "-a", app, "--args", *arguments] if arguments else ["open", app], check=True, env=child_environment())
+        subprocess.run(["open", "-a", app, "--args", *arguments] if arguments else ["open", app], check=True)
     else:
-        subprocess.Popen([sys.executable, *arguments], env=child_environment(), stdin=subprocess.DEVNULL,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **detached())
+        subprocess.Popen([sys.executable, *arguments], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, **detached())
 
 
 @main.command("quit")
@@ -288,35 +288,17 @@ def detached() -> dict:
     return {"start_new_session": True}
 
 
-def child_environment() -> dict | None:
-    """A packaged app's own settings must not reach programs it starts, including itself."""
-    if getattr(sys, "frozen", False):
-        from copydesk.update_install import clean_environment
-
-        return clean_environment()
-    return None
-
-
 def has_display() -> bool:
     return not sys.platform.startswith("linux") or bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
+def can_open_here() -> bool:
+    # Over SSH a window would open on the wrong computer, or a browser take over this terminal.
+    return not os.environ.get("SSH_CONNECTION") and has_display()
+
+
 def open_in_browser(url: str) -> bool:
-    # Over SSH a browser would open on the wrong computer, or take over this terminal.
-    if os.environ.get("SSH_CONNECTION") or not has_display():
-        return False
-    environment = child_environment()
-    if environment is None:
-        return webbrowser.open(url)
-    # The webbrowser module always passes on this process's environment.
-    original = dict(os.environ)
-    os.environ.clear()
-    os.environ.update(environment)
-    try:
-        return webbrowser.open(url)
-    finally:
-        os.environ.clear()
-        os.environ.update(original)
+    return can_open_here() and webbrowser.open(url)
 
 
 @contextlib.contextmanager
@@ -333,6 +315,11 @@ def find_instance(registry, name: str):
     return next((row for row in registry.list() if row.id == name or row.name.casefold() == wanted), None) or registry.get(name)
 
 
+def first_instance(rows):
+    """The first publication that exists. On a new install, that's the default one, as in the app."""
+    return next((row for row in rows if row.config_path.is_file()), rows[0])
+
+
 def pick_instance(registry, name: str | None = None):
     """The instance someone means: the one they named, the only one running, or their first."""
     from copydesk.instances import running_url
@@ -343,8 +330,10 @@ def pick_instance(registry, name: str | None = None):
     running = [row for row in rows if running_url(row)]
     if len(running) > 1:
         raise click.ClickException(f"Several instances are running: {', '.join(row.id for row in running)}. Name the one you mean.")
-    if running or rows:
-        return (running or rows)[0]
+    if running:
+        return running[0]
+    if rows:
+        return first_instance(rows)
     raise ConfigError(NO_INSTANCES)
 
 
@@ -360,7 +349,7 @@ def instance_to_start(registry, name: str | None, data_dir: Path | None):
         known = next((row for row in rows if row.id == name or row.name.casefold() == wanted), None)
         return known or registry.add(name)
     if rows:
-        return rows[0]
+        return first_instance(rows)
     raise ConfigError(NO_INSTANCES)
 
 
@@ -385,7 +374,7 @@ def run_instances(registry, selected, *, no_browser, no_worker, port) -> None:
 
     runtimes = []
     stopped = Event()
-    numbers = [getattr(signal, name) for name in ("SIGTERM", "SIGHUP") if hasattr(signal, name)]
+    numbers = [getattr(signal, name) for name in ("SIGTERM", "SIGHUP", "SIGBREAK") if hasattr(signal, name)]
     # Someone who ran this under nohup has asked for it to survive a closing terminal.
     previous = {number: signal.signal(number, lambda *_args: stopped.set()) for number in numbers
                 if signal.getsignal(number) != signal.SIG_IGN}
@@ -437,7 +426,7 @@ def run_in_background(registry, selected, *, no_browser, no_worker, port) -> Non
             command += ["--port", str(port)]
         registry.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         # Its output holds launch links, so it's discarded. Problems go to the log.
-        process = subprocess.Popen(command, cwd=registry.root, env=child_environment(), stdin=subprocess.DEVNULL,
+        process = subprocess.Popen(command, cwd=registry.root, stdin=subprocess.DEVNULL,
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **detached())
         deadline = time.monotonic() + 120
         while not all(running_url(item) for item in waiting):
@@ -445,8 +434,11 @@ def run_in_background(registry, selected, *, no_browser, no_worker, port) -> Non
                 raise click.ClickException("QuillSail couldn't start in the background. See why with: quillsail instance logs")
             time.sleep(.25)
     for item in selected:
+        if item not in waiting:
+            click.echo(f"{item.id} is already running, so it stays with the terminal or window that started it.")
         share_link(item, running_url(item), request_link(item), no_browser=no_browser)
-    click.echo("Running in the background. Stop it with: quillsail instance stop")
+    if waiting:
+        click.echo("Running in the background. Stop it with: quillsail instance stop")
 
 
 def start_instances(registry, selected, *, background, no_browser, no_worker, port) -> None:
@@ -670,9 +662,10 @@ def instance_logs(lines, follow):
     logfile = default_registry_dir() / LOG_NAME
     position = 0
     if logfile.exists():
-        content = logfile.read_text(encoding="utf-8", errors="replace")
-        position = len(content.encode("utf-8", errors="replace"))
-        for line in content.splitlines()[-lines:] if lines else []:
+        content = logfile.read_bytes()
+        position = len(content)
+        recent = content.decode("utf-8", errors="replace").splitlines()
+        for line in recent[-lines:] if lines else []:
             click.echo(line)
     elif not follow:
         click.echo("Nothing has been logged yet.")
@@ -702,7 +695,8 @@ def instance_folder(name, open_folder):
     with instance_errors():
         item = pick_instance(InstanceRegistry(), name)
     click.echo(item.root)
-    if open_folder and click.launch(str(item.root)) != 0:
+    # On Linux, waiting is how to hear whether it worked. On a Mac, it would wait for the window to close.
+    if open_folder and (not can_open_here() or click.launch(str(item.root), wait=sys.platform.startswith("linux")) != 0):
         raise click.ClickException("A file window couldn't be opened here. The folder is printed above.")
 
 

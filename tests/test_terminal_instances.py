@@ -1,5 +1,6 @@
 """The terminal must be a full alternative to the desktop window."""
 import json
+import logging
 import os
 import re
 import signal
@@ -8,6 +9,7 @@ import stat
 import subprocess
 import sys
 import threading
+from unittest import mock
 
 import pytest
 import requests
@@ -15,7 +17,7 @@ from click.testing import CliRunner
 
 from copydesk import cli, installed_command, instances
 from copydesk.cli import main
-from copydesk.desktop import CONTROL_FILE, CONTROL_HEADER, DesktopRuntime
+from copydesk.desktop import CONTROL_FILE, CONTROL_HEADER, DesktopRuntime, SharedLogHandler
 
 
 @pytest.fixture
@@ -105,6 +107,78 @@ def test_data_dir_creates_or_reuses_a_publication_in_that_folder(registry, tmp_p
     (full / 'notes.txt').write_text('mine')
     result = runner.invoke(main, ['instance', '--data-dir', str(full), '--no-browser'])
     assert result.exit_code == 1 and 'already contains other files' in result.output
+
+
+def test_a_bad_saved_port_counts_as_stopped_instead_of_crashing(registry):
+    item = registry.add('Team')
+    runner = CliRunner()
+    for saved in ({'format': 'quillsail.desktop.v1', 'port': 0}, {'format': 'something else', 'port': 5080}, {'format': 'quillsail.desktop.v1'}):
+        (item.root / 'desktop.json').write_text(json.dumps(saved))
+        assert instances.running_status(item) == {} and instances.running_url(item) == ''
+        result = runner.invoke(main, ['instance', 'list'])
+        assert result.exit_code == 0 and 'team · Team · Stopped' in result.output
+        assert json.loads(runner.invoke(main, ['instance', 'status', item.id, '--json']).output)['running'] is False
+
+
+def test_a_first_named_instance_is_not_replaced_by_an_empty_default(registry, monkeypatch):
+    started = stop_when_started(monkeypatch)
+    runner = CliRunner()
+    assert runner.invoke(main, ['instance', '--name', 'My publication', '--no-browser']).exit_code == 0
+    mine = registry.get('my-publication')
+    assert runner.invoke(main, ['instance', '--no-browser']).exit_code == 0
+    assert [runtime.root for runtime in started] == [mine.root] * 2
+    assert not registry.default.root.exists()
+    assert runner.invoke(main, ['instance', 'folder']).output.strip() == str(mine.root)
+    # Once the default publication exists, it comes first again, as it does in the app.
+    DesktopRuntime(registry.default.root).initialize()
+    assert runner.invoke(main, ['instance', 'folder']).output.strip() == str(registry.default.root)
+
+
+def test_background_does_not_promise_anything_for_an_instance_started_elsewhere(registry, monkeypatch):
+    monkeypatch.setattr(instances, 'running_url', lambda item: 'http://127.0.0.1:5999')
+    monkeypatch.setattr(instances, 'request_link', lambda item: 'http://127.0.0.1:5999/_desktop/open?ticket=x')
+    spawned = []
+    monkeypatch.setattr(cli.subprocess, 'Popen', lambda *args, **kwargs: spawned.append(args))
+    result = CliRunner().invoke(main, ['instance', '--background', '--no-browser'])
+    assert result.exit_code == 0, (result.output, result.exception)
+    assert spawned == [] and 'already running' in result.output and 'Running in the background' not in result.output
+
+
+def test_folder_reports_when_no_file_window_can_open(registry, monkeypatch):
+    item = registry.add('Team')
+    launched = []
+    monkeypatch.setattr(cli.click, 'launch', lambda *args, **kwargs: launched.append(kwargs) or 0)
+    monkeypatch.setattr(cli, 'has_display', lambda: False)
+    result = CliRunner().invoke(main, ['instance', 'folder', item.id, '--open'])
+    assert result.exit_code == 1 and str(item.root) in result.output and "couldn't be opened" in result.output
+    assert launched == []
+    monkeypatch.setattr(cli, 'has_display', lambda: True)
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    assert CliRunner().invoke(main, ['instance', 'folder', item.id, '--open']).exit_code == 0
+    monkeypatch.setattr(sys, 'platform', 'darwin')
+    assert CliRunner().invoke(main, ['instance', 'folder', item.id, '--open']).exit_code == 0
+    assert launched == [{'wait': True}, {'wait': False}]
+
+
+def test_several_processes_can_share_the_log_across_rotation(tmp_path):
+    logfile = tmp_path / 'quillsail.log'
+    def record(text):
+        return logging.LogRecord('copydesk', logging.INFO, __file__, 1, text, None, None)
+    handlers = [SharedLogHandler(logfile, maxBytes=200, backupCount=2, encoding='utf-8', delay=True) for _ in range(2)]
+    try:
+        for number in range(30):
+            handlers[number % 2].emit(record(f'line {number:02} ' + 'x' * 40))
+            # Neither keeps the file open, so neither can write to a rotated copy.
+            assert all(handler.stream is None for handler in handlers)
+        current = logfile.read_text()
+        assert 'line 29' in current and 'line 28' in current
+        assert (tmp_path / 'quillsail.log.1').exists() and (tmp_path / 'quillsail.log.2').exists()
+        assert not (tmp_path / 'quillsail.log.3').exists()
+        for path in tmp_path.iterdir():
+            assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    finally:
+        for handler in handlers:
+            handler.close()
 
 
 def test_options_that_start_an_instance_are_refused_with_another_command(registry):
@@ -248,7 +322,8 @@ def test_setup_follows_the_saved_appearance_in_a_terminal_instance(registry, mon
 def test_logs_follow_prints_new_lines_until_interrupted(registry, monkeypatch):
     registry.root.mkdir(parents=True)
     logfile = registry.root / 'quillsail.log'
-    logfile.write_text('old\n')
+    # A byte that isn't valid text must not throw off where following picks up.
+    logfile.write_bytes(b'old \xff\n')
     naps = []
     def nap(_seconds):
         naps.append(1)
@@ -259,7 +334,7 @@ def test_logs_follow_prints_new_lines_until_interrupted(registry, monkeypatch):
         raise KeyboardInterrupt
     monkeypatch.setattr(cli.time, 'sleep', nap)
     result = CliRunner().invoke(main, ['instance', 'logs', '--follow'])
-    assert result.exit_code == 0 and result.output == 'old\nnew\n'
+    assert result.exit_code == 0 and result.output == 'old \ufffd\nnew\n'
 
 
 def test_several_running_instances_must_be_named(registry, monkeypatch):
@@ -406,33 +481,22 @@ def test_packaged_serve_does_not_try_to_restart_itself(tmp_path, monkeypatch):
     assert seen['use_reloader'] is False
 
 
-def test_programs_started_by_a_packaged_app_get_a_clean_environment(monkeypatch, tmp_path):
-    monkeypatch.setenv('_PYI_APPLICATION_HOME_DIR', str(tmp_path))
-    monkeypatch.setenv('LD_LIBRARY_PATH', str(tmp_path))
-    monkeypatch.setenv('LD_LIBRARY_PATH_ORIG', '/usr/lib/original')
-    monkeypatch.delenv('SSH_CONNECTION', raising=False)
-    monkeypatch.setattr(cli, 'has_display', lambda: True)
-    assert cli.child_environment() is None
+def test_a_packaged_command_cleans_its_environment_before_anything_starts(monkeypatch, tmp_path):
+    from copydesk import desktop_ui
+
     monkeypatch.setattr(sys, 'frozen', True, raising=False)
-    environment = cli.child_environment()
-    assert environment['PYINSTALLER_RESET_ENVIRONMENT'] == '1' and environment['LD_LIBRARY_PATH'] == '/usr/lib/original'
-    assert '_PYI_APPLICATION_HOME_DIR' not in environment
+    monkeypatch.setattr(installed_command, 'refresh_installed_command', lambda: None)
+    monkeypatch.setattr(sys, 'argv', ['QuillSail', 'cli', '--version'])
+    bundled = {'_PYI_APPLICATION_HOME_DIR': str(tmp_path), 'LD_LIBRARY_PATH': str(tmp_path), 'LD_LIBRARY_PATH_ORIG': '/usr/lib/original'}
+    with mock.patch.dict(os.environ, bundled), pytest.raises(SystemExit):
+        try:
+            desktop_ui.main()
+        finally:
+            # Everything started from here inherits this, including this app again.
+            assert os.environ['PYINSTALLER_RESET_ENVIRONMENT'] == '1'
+            assert os.environ['LD_LIBRARY_PATH'] == '/usr/lib/original'
+            assert '_PYI_APPLICATION_HOME_DIR' not in os.environ
     assert cli.own_command() == [sys.executable, 'cli']
-
-    seen = {}
-    def fake_open(url):
-        seen.update(os.environ)
-        return True
-    monkeypatch.setattr(cli.webbrowser, 'open', fake_open)
-    assert cli.open_in_browser('http://127.0.0.1:1/') is True
-    assert seen['LD_LIBRARY_PATH'] == '/usr/lib/original' and '_PYI_APPLICATION_HOME_DIR' not in seen
-    assert os.environ['LD_LIBRARY_PATH'] == str(tmp_path) and os.environ['_PYI_APPLICATION_HOME_DIR'] == str(tmp_path)
-
-    launched = []
-    monkeypatch.setattr(cli.subprocess, 'Popen', lambda command, **kwargs: launched.append(kwargs))
-    monkeypatch.setattr(sys, 'platform', 'linux')
-    cli.open_packaged_window([])
-    assert '_PYI_APPLICATION_HOME_DIR' not in launched[0]['env']
 
 
 OLD_POSIX = """#!/bin/sh
